@@ -53,7 +53,7 @@ export function PublicStationPage({ publicId }: { publicId: string }) {
       if (cancelled) return;
       setData(result);
       setStatus("ready");
-      document.title = `${result.snapshot.profile.title} · DSP极简网络空间站`;
+      document.title = `${result.snapshot.profile.title} · ${__APP_DISPLAY_NAME__}空间站`;
     }).catch((error) => {
       if (cancelled) return;
       setStatus(error instanceof CloudApiError && error.status === 404 ? "missing" : "error");
@@ -115,7 +115,7 @@ export function PublicStationPage({ publicId }: { publicId: string }) {
       <Satellite size={42} />
       <strong>{status === "loading" ? "正在接入空间站通讯信标" : status === "missing" ? "空间站不存在或已设为私密" : "空间站暂时无法访问"}</strong>
       <p>{message ?? (status === "loading" ? "只会读取脱敏公开快照，不会载入任何本地或云端工厂存档。" : "私密主页与不存在主页使用相同的不可访问状态。")}</p>
-      <a href="/"><ArrowLeft size={16} />返回 DSP极简网络</a>
+      <a href="/"><ArrowLeft size={16} />返回 {__APP_DISPLAY_NAME__}</a>
     </main>;
   }
 
@@ -124,7 +124,7 @@ export function PublicStationPage({ publicId }: { publicId: string }) {
   const aggregateMetrics = Object.entries(snapshot.aggregateMetrics) as Array<[PublicStationMetricKey, number | string]>;
   return <main className="public-station-page">
     <header className="public-station-header">
-      <a href="/" aria-label="返回 DSP极简网络"><ArrowLeft size={19} /></a>
+      <a href="/" aria-label={`返回 ${__APP_DISPLAY_NAME__}`}><ArrowLeft size={19} /></a>
       <div><i><Satellite size={23} /></i><span><small>公开空间站 · 只读访客模式</small><strong>{snapshot.profile.title}</strong></span></div>
       <button type="button" onClick={() => void copyLink()}><Copy size={16} />分享</button>
     </header>

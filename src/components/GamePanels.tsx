@@ -69,6 +69,7 @@ import { ItemCatalogPicker, RecipeCatalogPicker } from "./CatalogPicker";
 import { StableTextInput } from "./CompositionSafeInput";
 import { QuantityStepper } from "./QuantityStepper";
 import { CAMPAIGN_TASKS, getCampaignSnapshot, getCampaignTaskDeficits } from "../game/campaign";
+import { resolveFiniteResourceMultiplier } from "../game/difficulty";
 import { CONSTRUCTION, FUEL_ENERGY_MJ, ITEMS, PLANET_LIST, RECIPES, getBeltConstructionId, getBeltTier, getBuilding, getBuildingUpgradeTarget, getConstructionCatalogIds, getConstructionDefinition, getExtractorBuildingId, getFuelItemIdsForBuilding, getItem, getNextBeltTier, getPlanet, getProliferator, getRecipe, getRecipesForBuilding, getTechnology, isConstructionDeployable, isConstructionInCategory, isConveyorBeltId } from "../game/content";
  import { MATERIAL_DELIVERY_SLOT_COUNT, MAX_BELT_LANES, MAX_BUILDING_STACK_COUNT, MAX_MANUAL_CRAFT_BATCHES, MAX_PLANET_TRAY_ITEM_LIMIT, MIN_PLANET_TRAY_ITEM_LIMIT, PORTABLE_FLEET_ITEM_IDS, POWER_GRID_IDS, POWER_GRID_LABELS, canPlaceBuildingOnPlanet, canQueueHandcraftRecipe, canSetBeltStackSize, canUpgradeBelt, canUpgradeEntity, findInterstellarPeer, findPlanetaryPeer, getBeltCapacity, getBeltLaneAdjustmentCheck, getBeltNetworkIds, getConstructionAutomationStatus, getConstructionCraftDeficits, getConstructionQuickCraftPlan, getDysonEngineeringSnapshot, getDysonShellCapacity, getEjectorOrbitTargetStatus, getEntityExtraProductBonus, getEntityOperatingStatus, getEntityOutputCapacity, getEntityPowerFactor, getEntityProliferatorPowerMultiplier, getEntityProliferatorSpeedMultiplier, getInterstellarCargoCapacity, getInterstellarTripSeconds, getMaterialDeliveryItems, getMaterialDeliverySlots, getMaxConstructionQuickCraftBatches, getMaxRecursiveHandcraftBatches, getMiningSpeedMultiplier, getOrbitalCollectorQuantumStatus, getPlanetaryCargoCapacity, getPlanetaryTripSeconds, getPlanetMetrics, getPlanetTrayItemLimit, getPowerGridMetrics, getProliferatorSprayCost, getQuantumAttachmentStatus, getRayReceiverCapacityKw, getRecursiveHandcraftPlan, getResourceReserveSnapshot, getSprayCoaterInstallCheck, getSprayCoaterRemovalRefund, getStationActiveRoutes, getStationBusyVehicleCount, getStationDroneCapacity, getStationFleetDiagnostic, getStationMinimumCargo, getStationSlotCapacity, getStationSlots, getStationVesselCapacity, getStationWarperAutoRefillTarget, getStationWarperCapacity, getStationWarperRefillSnapshot, getTimeWarpRequiredPowerKw, isEntityInPowerCoverage, isHandcraftableRecipe, isPlanetColonized, isPortableFleetItem, isProliferatorEligible, isTechnologyCompleted, stationRouteRequiresWarp } from "../game/engine";
 import { getPlanetDisplayName, getPlanetIndustrialProfile, getPlanetOrbitalYields, specializationApplies } from "../game/galaxy";
@@ -1454,7 +1455,7 @@ function EntityInspector({
   const fuelOptions = getFuelItemIdsForBuilding(entity.buildingId!);
   if (fuelOptions.length > 0) {
     const fuelId = entity.fuelItemId;
-    const ratedPower = (building.powerGenerationKw ?? 0) * entity.machineCount;
+    const ratedPower = (building.powerGenerationKw ?? 0) * entity.machineCount * resolveFiniteResourceMultiplier(game.settings?.powerGenerationMultiplier);
     return (
       <div className="inspector-content">
         <div className="inspector-identity">
@@ -1501,7 +1502,7 @@ function EntityInspector({
           <div><dt>当前储能</dt><dd>{stored.toFixed(2)} / {capacity.toFixed(0)} MJ</dd></div>
           <div><dt>充电功率</dt><dd><PowerValue valueKw={entity.powerInputKw ?? 0} /></dd></div>
           <div><dt>放电功率</dt><dd><PowerValue valueKw={entity.powerOutputKw ?? 0} /></dd></div>
-          <div><dt>最大功率</dt><dd><PowerValue valueKw={(building.powerGenerationKw ?? 0) * entity.machineCount} /></dd></div>
+          <div><dt>最大功率</dt><dd><PowerValue valueKw={(building.powerGenerationKw ?? 0) * entity.machineCount * resolveFiniteResourceMultiplier(game.settings?.powerGenerationMultiplier)} /></dd></div>
         </dl>
         <PowerNetworkControl game={game} entity={entity} onGridChange={onPowerGridChange} onPowerPriorityChange={onPowerPriorityChange} onGenerationPriorityChange={onGenerationPriorityChange} />
         <p className="inspector-description">{building.description}</p>
@@ -1892,7 +1893,7 @@ function EntityInspector({
           <>
             <div><dt>设备状态</dt><dd className={`status-text status-text--${status.tone}`}>{status.label}</dd></div>
             <div><dt>实时发电</dt><dd><PowerValue valueKw={entity.powerOutputKw ?? 0} /></dd></div>
-            <div><dt>额定发电</dt><dd><PowerValue valueKw={(building.powerGenerationKw ?? 0) * entity.machineCount * (entity.buildingId === "solar_panel" ? getPlanetIndustrialProfile(game, entity.planetId).solarMultiplier : entity.buildingId === "geothermal_power_station" ? getPlanetIndustrialProfile(game, entity.planetId).geothermalMultiplier : getPlanetIndustrialProfile(game, entity.planetId).windMultiplier)} /></dd></div>
+            <div><dt>额定发电</dt><dd><PowerValue valueKw={(building.powerGenerationKw ?? 0) * entity.machineCount * (entity.buildingId === "solar_panel" ? getPlanetIndustrialProfile(game, entity.planetId).solarMultiplier : entity.buildingId === "geothermal_power_station" ? getPlanetIndustrialProfile(game, entity.planetId).geothermalMultiplier : getPlanetIndustrialProfile(game, entity.planetId).windMultiplier) * resolveFiniteResourceMultiplier(game.settings?.powerGenerationMultiplier)} /></dd></div>
           </>
         ) : (
           <>
@@ -2901,10 +2902,6 @@ export function HeaderControls({
   };
   return (
     <header className="game-header">
-      <div className="brand-lockup">
-        <i><Power size={21} /></i>
-        <div><strong>DSP极简网络</strong></div>
-      </div>
       <div className="header-metrics">
         {game ? <>
           <div><Zap size={16} /><span>电网负载</span><strong><PowerValue valueKw={game.metrics.demandKw} /><small>/ <PowerValue valueKw={game.metrics.generationKw} /></small></strong></div>

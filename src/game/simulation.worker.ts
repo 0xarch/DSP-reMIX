@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { applyContentPackRuntimeSnapshot, type ContentPackRuntimeSnapshot } from "./contentPacks";
+import { syncDynamicGalaxyCatalog } from "./content";
 import { advancePersistentSimulationRuntime, advancePersistentSimulationRuntimeMulticore, createPersistentSimulationRuntime, createSimulationPlanetPhaseLookup, ensureSimulationDynamicRouteLookup, createSimulationProfiler, markPersistentSimulationRuntimeDirty, replacePersistentSimulationRuntimeState, type PersistentSimulationRuntime, type SimulationProfiler } from "./engine";
 import { BrowserMulticoreExecutor, planMulticoreSimulation, type MulticoreSimulationOptions } from "./multicoreSimulation";
 import type { GameState } from "./types";
@@ -187,6 +188,7 @@ function applyCommandToPersistentRuntime(command: SimulationCommandPatch, profil
     return;
   }
   runtime.state = applied.state;
+  syncDynamicGalaxyCatalog(applied.state.galaxy);
   markPersistentSimulationRuntimeDirty(runtime, {
     entityIds: applied.changedEntityIds,
     beltIds: applied.changedBeltIds,
@@ -425,6 +427,7 @@ async function processDurableReplayRequest(
       buffer: await sourceStateBlobTransfer!.blob.arrayBuffer(),
     };
     const state = deserializeSimulationStateTransfer(stateTransfer);
+    syncDynamicGalaxyCatalog(state.galaxy);
     activateRuntimeRegistry(registry);
     if (runtime) replacePersistentSimulationRuntimeState(runtime, state);
     else runtime = createPersistentSimulationRuntime(state);
@@ -588,6 +591,7 @@ async function processSimulationRequest(event: MessageEvent<SimulationWorkerRequ
   }
   const { id, stateTransfer, simulationSeconds, wallSeconds, profile, registryFingerprint, registry, stateRevision } = event.data;
   const state = event.data.state ?? (stateTransfer ? deserializeSimulationStateTransfer(stateTransfer) : undefined);
+  if (state) syncDynamicGalaxyCatalog(state.galaxy);
   const profiler = profile ? createSimulationProfiler() : undefined;
   const reusedState = !state && Boolean(runtime);
   if (profiler && reusedState) profiler.persistentRuntimeHits += 1;

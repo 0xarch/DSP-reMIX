@@ -1,3 +1,4 @@
+import { useAppLocale } from "../i18n/locale";
 import {
   Activity,
   BarChart3,
@@ -162,6 +163,7 @@ export function GalaxyWorkspace({
   onSwitchAccount,
   onRestoreCloudSave,
 }: GalaxyWorkspaceProps) {
+  const { locale: appLocale } = useAppLocale();
   const [tab, setTab] = useState<GalaxyTab>("ranking");
   const [speedrunTarget, setSpeedrunTarget] = useState<SpeedrunTargetId>(SPEEDRUN_TARGET_IDS[0]);
   const [speedrunEntries, setSpeedrunEntries] = useState<SpeedrunLeaderboardEntry[]>([]);
@@ -978,7 +980,7 @@ export function GalaxyWorkspace({
           <section className="galaxy-cloud-status">
             <header>
               <i>{cloudSession.status === "offline" ? <CloudOff size={22} /> : <Cloud size={22} />}</i>
-              <span><small>DSP 极简网络云节点</small><strong>{cloudSession.status === "authenticated" ? cloudSession.user?.displayName : cloudSession.status === "offline" ? "当前离线" : cloudSession.status === "checking" ? "正在连接" : "登录云账户"}</strong></span>
+              <span><small>{appLocale === "en" ? `${__APP_DISPLAY_NAME_EN__} Cloud Node` : `${__APP_DISPLAY_NAME__}云节点`}</small><strong>{cloudSession.status === "authenticated" ? cloudSession.user?.displayName : cloudSession.status === "offline" ? "当前离线" : cloudSession.status === "checking" ? "正在连接" : "登录云账户"}</strong></span>
               <em className={`cloud-state cloud-state--${cloudSession.status}`}>{cloudSession.status === "authenticated" ? "已登录" : cloudSession.status === "anonymous" ? "访客" : cloudSession.status === "checking" ? "连接中" : "离线"}</em>
             </header>
             {cloudSession.status === "offline" ? <div className="galaxy-cloud-offline"><CloudOff size={24} /><span><strong>云服务暂时不可达</strong><small>{cloudSession.message ?? "本地存档和本地排行榜仍可继续使用。"}</small></span><button type="button" onClick={() => { setCloudSession({ status: "checking", user: null, cloudSave: null, mailAvailable: false, message: null }); void resumeCloudSession(game.mode).then(setCloudSession); }}>重新连接</button></div> : null}

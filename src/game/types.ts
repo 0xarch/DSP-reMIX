@@ -1,4 +1,5 @@
 import type { XYPosition } from "@xyflow/react";
+import type { ResourceMultiplierSetting } from "./difficulty";
 
 export type StarSystemId =
   | "helios"
@@ -8,7 +9,9 @@ export type StarSystemId =
   | "sirius"
   | "white_dwarf"
   | "neutron"
-  | "blue_giant";
+  | "blue_giant"
+  // 程序化生成的星系（`${idTableKey}`，见 content/dsp/starSystems.ts 的 ID 表）
+  | (string & {});
 
 export type PlanetId =
   | "home"
@@ -32,7 +35,9 @@ export type PlanetId =
   | "tempest"
   | "inferno"
   | "abyss"
-  | "azure_giant";
+  | "azure_giant"
+  // 程序化生成的行星（`${星系ID}-${星球类型}`，同上）
+  | (string & {});
 
 export type PlanetTemplateId =
   | "oceanic"
@@ -812,6 +817,8 @@ export interface ItemDefinition {
   color: string;
   kind: "solid" | "fluid" | "matrix";
   description: string;
+  /** 可选图片图标（资源 URL）；未提供时按 content/dsp/itemIcons 的约定目录解析，再回退 symbol 文本。 */
+  icon?: string;
 }
 
 export interface PlanetDefinition {
@@ -950,6 +957,8 @@ export interface FactoryEntity {
   generationPriority?: PowerPriority;
   resourceRemaining?: number;
   resourceCapacity?: number;
+  /** 矿物倍率为 +Infinity 时建立的无限矿脉；储量数值仅为回退显示值。 */
+  resourceInfinite?: boolean;
   /** Tenths of one reserve unit already consumed; kept as an integer for deterministic depletion. */
   resourceDepletionRemainder?: number;
   stationMode?: "supply" | "demand";
@@ -1344,8 +1353,54 @@ export interface StarSystemDisplayMetadata {
   customName: string;
 }
 
+export interface GalaxyGenerationOptions {
+  /** 本存档可勘探的恒星系个数（含母星系 helios）；0 视为仅母星系。 */
+  systemCount: number;
+  /** 星系距离系数，乘算至恒星系初始坐标的计算结果。 */
+  distanceCoefficient: number;
+}
+
+/** 程序化生成的恒星系（由种子+星系个数确定性推导，随 galaxy 持久化以便内容目录注册）。 */
+export interface GeneratedStarSystemDef {
+  systemId: StarSystemId;
+  displayName: string;
+  typeCode: string;
+  starType: string;
+  starClassId: StarClassId;
+  color: string;
+  temperature: number;
+  gravity: number;
+  wildness: number;
+  organism: number;
+  rings: number;
+  largePlanets: string[];
+  positionX: number;
+  positionY: number;
+  distanceFromOriginLy: number;
+  luminosity: number;
+  massMultiplier: number;
+  radiusMultiplier: number;
+  explorationCost: ItemAmount[];
+}
+
+/** 程序化生成的行星（`${星系ID}-${星球类型}`）。 */
+export interface GeneratedPlanetDef {
+  planetId: PlanetId;
+  typeCode: string;
+  displayName: string;
+  systemId: StarSystemId;
+  large: boolean;
+  orbitIndex: number;
+  kind: "terrestrial" | "gas-giant";
+  color: string;
+  code: string;
+}
+
 export interface GalaxyState {
   seed: number;
+  generation: GalaxyGenerationOptions;
+  generatedSystems: GeneratedStarSystemDef[];
+  generatedPlanets: GeneratedPlanetDef[];
   profiles: Record<PlanetId, PlanetIndustrialProfile>;
   systemProfiles: Record<StarSystemId, StarSystemProfile>;
   planetRoles: Record<PlanetId, PlanetIndustryRole>;
@@ -1381,6 +1436,10 @@ export interface GameSettings {
   autoShortageNavigation: boolean;
   resourceMode: ResourceMode;
   difficulty: DifficultyMode;
+  /** 精准难度：矿脉建立时初始储量 × 该倍率；"Infinity" 表示无限矿石。 */
+  veinMultiplier: ResourceMultiplierSetting;
+  /** 精准难度：发电设施输出功率 × 该倍率；"Infinity" 表示无限发电功率。 */
+  powerGenerationMultiplier: ResourceMultiplierSetting;
 }
 
 export interface GameContentPackReference {

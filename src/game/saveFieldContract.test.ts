@@ -32,6 +32,7 @@ const ENTITY_PROJECTED_FIELDS = [
   "stationDispatchCursor",
   "proliferatorPoints",
   "resourceDepletionRemainder",
+  "resourceInfinite",
   "stationWarperAutoRefill",
   "stationHubEnabled",
   "quantumTarget",
@@ -70,6 +71,7 @@ const STATION_SLOT_PROJECTED_FIELDS = [
 
 function denseEntity(): Record<string, unknown> {
   return {
+    resourceInfinite: false,
     id: "station",
     kind: "station",
     buildingId: "interstellar_logistics_station",

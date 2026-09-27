@@ -14,6 +14,8 @@ const SAVE_SNAPSHOT_KEY_PREFIX = `${SAVE_KEY}.snapshot`;
 export type MenuSaveSource = "primary" | "backup" | "snapshot";
 
 export interface MenuSaveSummary {
+  /** 玩家自定义存档名称；null 表示未命名（UI 回退到默认标签）。 */
+  name?: string | null;
   mode: SaveMode;
   savedAt: number;
   elapsedSeconds: number;
@@ -72,6 +74,7 @@ function snapshotKeys(mode: SaveMode = "normal"): string[] {
 
 function summaryFromCatalog(catalog: LocalSaveCatalog): MenuSaveSummary {
   return {
+    name: catalog.name ?? null,
     mode: catalog.mode,
     savedAt: catalog.savedAt,
     elapsedSeconds: catalog.elapsedSeconds,
@@ -144,6 +147,7 @@ export function getMenuSnapshotSummaries(mode: SaveMode = "normal"): MenuSnapsho
         ? key.slice(`${SAVE_SNAPSHOT_KEY_PREFIX}.${mode}.`.length)
         : key.slice(`${SAVE_SNAPSHOT_KEY_PREFIX}.`.length),
       ...summaryFromCatalog(catalog),
+      name: catalog.name ?? null,
       reason: catalog.reason ?? "自动快照",
       valid: true as const,
     }];

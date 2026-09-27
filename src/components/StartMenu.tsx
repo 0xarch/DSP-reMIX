@@ -21,7 +21,6 @@ import {
   MailWarning,
   MessageCircle,
   MousePointer2,
-  Palette,
   Play,
   Plus,
   RefreshCw,
@@ -37,6 +36,8 @@ import {
   VolumeX,
   X,
   Zap,
+  Sparkles,
+  Pencil,
 } from "lucide-react";
 import { QuantityValue } from "./QuantityValue";
 import {
@@ -67,8 +68,23 @@ import {
   type CloudUploadStage,
 } from "../game/cloud";
 import { trackAnalyticsEvent } from "../game/analytics";
+import {
+  GALAXY_DISTANCE_COEFFICIENT_MAX,
+  GALAXY_DISTANCE_COEFFICIENT_MIN,
+  GALAXY_SYSTEM_COUNT_MAX,
+  GALAXY_SYSTEM_COUNT_MIN,
+  STAR_SYSTEM_LIST,
+  createGalaxySeedFromText,
+} from "../game/galaxy";
+import {
+  RESOURCE_MULTIPLIER_MAX,
+  RESOURCE_MULTIPLIER_MIN,
+  formatResourceMultiplier,
+  normalizeResourceMultiplierSetting,
+} from "../game/difficulty";
 import type { MenuContinueSave, MenuSaveSource, MenuSlotSummary, MenuSnapshotSummary } from "../game/savePreview";
 import type { DeferredLoadedGame, LoadedGame, SaveInspection, SaveSlotId } from "../game/storage";
+import { SAVE_NAME_MAX_LENGTH } from "../game/storage";
 import type { AutosaveIntervalSeconds, FontScale, GameSettings, PlanetId, SaveMode, SimulationSpeed } from "../game/types";
 import { getDesktopBridge } from "../desktop";
 import { getCurrentReleaseNotes } from "../i18n/currentReleaseNotes";
@@ -78,7 +94,6 @@ import { StableTextInput } from "./CompositionSafeInput";
 import { SaveDeleteDialog, type SaveDeleteTarget } from "./SaveDeleteDialog";
 import { SpeedrunCopyDialog } from "./SpeedrunCopyDialog";
 import { AccessibleDialog } from "./AccessibleDialog";
-import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { isSecureCloudClient } from "../nativeApp";
 import { useAppLocale } from "../i18n/locale";
 import { exportTextFile } from "../game/fileExport";
@@ -94,7 +109,7 @@ import {
   type OfflineSettlementFailureKind,
   type OfflineSettlementPreference,
 } from "../game/offlineSettlementStrategy";
-import { readShowRunLogPreference, readThemePreference, writeShowRunLogPreference, writeThemePreference } from "../game/uiPreferences";
+import { readShowRunLogPreference, writeShowRunLogPreference } from "../game/uiPreferences";
 import { reloadLocalSaveCache, retainLocalSavePayload, subscribeLocalSaveStorageStatus } from "../game/localSaveStore";
 import type { SimulationRuntimeStartupRecoveryProgress } from "../game/simulationRuntimeStartupRecovery";
 
@@ -176,7 +191,6 @@ function cloudUploadStageLabel(stage: CloudUploadStage): string {
 
 const MENU_SETTINGS_KEY = "dsp-idle-network.menu-settings.v1";
 const REGISTRATION_DRAFT_KEY = "dsp-idle-network.registration-draft.v1";
-const NATIVE_DOWNLOAD_URL = "https://download.dsponline.cn/";
 const FONT_SCALES: FontScale[] = [0.8, 1, 1.25, 1.5, 2];
 const SIMULATION_SPEEDS: SimulationSpeed[] = [1, 2, 4];
 const AUTOSAVE_INTERVALS: AutosaveIntervalSeconds[] = [30, 60, 120, 600, 1800, 0];
@@ -190,6 +204,7 @@ const MENU_PLANET_NAMES: Record<PlanetId, string> = {
 const DEFAULT_MENU_SETTINGS: GameSettings = {
   simulationSpeed: 1,
   fontScale: 1,
+  // legacy save-compat field; the UI theme system has been removed and only dark mode ships
   theme: "dark",
   technologyLayout: "standard",
   performanceMode: false,
@@ -207,6 +222,8 @@ const DEFAULT_MENU_SETTINGS: GameSettings = {
   autoShortageNavigation: false,
   resourceMode: "finite",
   difficulty: "standard",
+  veinMultiplier: 1,
+  powerGenerationMultiplier: 1,
 };
 const loadContentPackRuntimeModule = () => importWithRecovery(() => import("../game/contentPacks"), "内容包注册表");
 const loadSimulationRuntimeStartupRecoveryModule = () => importWithRecovery(
@@ -256,13 +273,11 @@ function cloudSyncLabel(state: CloudSyncState): string {
 function readMenuSettings(fallback: GameSettings): GameSettings {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(MENU_SETTINGS_KEY) ?? "null") as Partial<GameSettings> | null;
-    const localTheme = readThemePreference();
-    if (!parsed) return localTheme ? { ...fallback, theme: localTheme } : fallback;
+    if (!parsed) return fallback;
     return {
       ...fallback,
       simulationSpeed: SIMULATION_SPEEDS.includes(parsed.simulationSpeed as SimulationSpeed) ? parsed.simulationSpeed as SimulationSpeed : fallback.simulationSpeed,
       fontScale: FONT_SCALES.includes(parsed.fontScale as FontScale) ? parsed.fontScale as FontScale : fallback.fontScale,
-      theme: localTheme ?? (parsed.theme === "light" || parsed.theme === "system" ? parsed.theme : "dark"),
       technologyLayout: parsed.technologyLayout === "compact" ? "compact" : "standard",
       autosaveIntervalSeconds: AUTOSAVE_INTERVALS.includes(parsed.autosaveIntervalSeconds as AutosaveIntervalSeconds) ? parsed.autosaveIntervalSeconds as AutosaveIntervalSeconds : fallback.autosaveIntervalSeconds,
       autoShortageNavigation: typeof parsed.autoShortageNavigation === "boolean" ? parsed.autoShortageNavigation : fallback.autoShortageNavigation,
@@ -284,6 +299,22 @@ function saveMenuSettings(settings: GameSettings): void {
   try { window.localStorage.setItem(MENU_SETTINGS_KEY, JSON.stringify(settings)); } catch { /* optional preference */ }
 }
 
+function clampGalaxySystemCount(value: number): number {
+  if (!Number.isFinite(value)) return STAR_SYSTEM_LIST.length;
+  return Math.min(GALAXY_SYSTEM_COUNT_MAX, Math.max(GALAXY_SYSTEM_COUNT_MIN, Math.floor(value)));
+}
+
+function clampGalaxyDistance(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.round(Math.min(GALAXY_DISTANCE_COEFFICIENT_MAX, Math.max(GALAXY_DISTANCE_COEFFICIENT_MIN, value)) * 100) / 100;
+}
+
+function clampResourceMultiplierValue(value: number): number | "Infinity" {
+  if (!Number.isFinite(value)) return "Infinity";
+  const clamped = Math.round(Math.min(RESOURCE_MULTIPLIER_MAX, Math.max(RESOURCE_MULTIPLIER_MIN, value)) * 100) / 100;
+  return normalizeResourceMultiplierSetting(clamped) ?? 1;
+}
+
 function mergeMenuRuntimeSettings(saved: GameSettings, menu: GameSettings): GameSettings {
   const merged = {
     ...saved,
@@ -298,6 +329,8 @@ function mergeMenuRuntimeSettings(saved: GameSettings, menu: GameSettings): Game
     proliferatorBufferLimit: saved.proliferatorBufferLimit,
     resourceMode: saved.resourceMode,
     difficulty: saved.difficulty,
+    veinMultiplier: saved.veinMultiplier,
+    powerGenerationMultiplier: saved.powerGenerationMultiplier,
   };
   return (Object.keys(merged) as Array<keyof GameSettings>).every((key) => Object.is(merged[key], saved[key]))
     ? saved
@@ -351,9 +384,15 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
   const [localSaveIndexReady, setLocalSaveIndexReady] = useState(false);
   const [settings, setSettings] = useState<GameSettings>(() => readMenuSettings(DEFAULT_MENU_SETTINGS));
   const [newFactoryMode, setNewFactoryMode] = useState<"normal" | "speedrun">("normal");
+  const [newGameSeedText, setNewGameSeedText] = useState("");
+  const [newGalaxySystemCount, setNewGalaxySystemCount] = useState(STAR_SYSTEM_LIST.length);
+  const [newGalaxyDistance, setNewGalaxyDistance] = useState(1);
+  const [newVeinMultiplier, setNewVeinMultiplier] = useState(1);
+  const [newPowerMultiplier, setNewPowerMultiplier] = useState(1);
+  const [newPowerMultiplierInfinite, setNewPowerMultiplierInfinite] = useState(false);
+  const [newVeinMultiplierInfinite, setNewVeinMultiplierInfinite] = useState(false);
   const [showRunLog, setShowRunLog] = useState(readShowRunLogPreference);
   const [offlineSettlementPreference, setOfflineSettlementPreference] = useState<OfflineSettlementPreference>(readOfflineSettlementPreference);
-  useResolvedTheme(settings.theme);
   const [cloudSession, setCloudSession] = useState<CloudSession>({ status: "checking", user: null, cloudSave: null, mailAvailable: false, message: null });
   const initialCloudAction = useMemo(() => {
     const parameters = new URLSearchParams(window.location.search);
@@ -384,7 +423,17 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
   const [importInspection, setImportInspection] = useState<SaveInspection | null>(null);
   const [importRaw, setImportRaw] = useState<string | null>(null);
   const [rescueConfirmation, setRescueConfirmation] = useState(false);
-  const [deleteRequest, setDeleteRequest] = useState<(SaveDeleteTarget & { slotId: SaveSlotId; mode: SaveMode }) | null>(null);
+  type LocalDeleteRequest = SaveDeleteTarget & (
+    | { kind: "slot"; slotId: SaveSlotId; mode: SaveMode }
+    | { kind: "primary"; mode: SaveMode }
+    | { kind: "snapshot"; id: string; mode: SaveMode });
+  type LocalRenameRequest = (
+    | { kind: "slot"; slotId: SaveSlotId; mode: SaveMode }
+    | { kind: "primary"; mode: SaveMode }
+    | { kind: "snapshot"; id: string; mode: SaveMode }) & { label: string };
+  const [deleteRequest, setDeleteRequest] = useState<LocalDeleteRequest | null>(null);
+  const [renameRequest, setRenameRequest] = useState<LocalRenameRequest | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [cloudDeleteRequest, setCloudDeleteRequest] = useState<(SaveDeleteTarget & { slot: CloudSaveSlot; metadata: CloudSaveMetadata }) | null>(null);
   const [speedrunCopyRequest, setSpeedrunCopyRequest] = useState<{ source: "main" | SaveSlotId; label: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -532,7 +581,6 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
     const next = { ...settings, ...changes };
     setSettings(next);
     saveMenuSettings(next);
-    if (changes.theme) writeThemePreference(changes.theme);
   };
 
   const updateRunLogPreference = (enabled: boolean) => {
@@ -1014,7 +1062,18 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
         loadFactoryStartupModules(),
       ]);
       await preserveCurrentSave("开始新工厂前", storage, newFactoryMode);
-      const state = newFactoryMode === "speedrun" ? createSpeedrunInitialState() : createPlayerInitialState();
+      const generationOptions = {
+        seed: createGalaxySeedFromText(newGameSeedText),
+        galaxyOptions: {
+          systemCount: clampGalaxySystemCount(newGalaxySystemCount),
+          distanceCoefficient: clampGalaxyDistance(newGalaxyDistance),
+        },
+        veinMultiplier: newVeinMultiplierInfinite ? "Infinity" : clampResourceMultiplierValue(newVeinMultiplier),
+        powerGenerationMultiplier: newPowerMultiplierInfinite ? "Infinity" : clampResourceMultiplierValue(newPowerMultiplier),
+      } as const;
+      const state = newFactoryMode === "speedrun"
+        ? createSpeedrunInitialState(Date.now(), undefined, generationOptions)
+        : createPlayerInitialState(generationOptions);
       state.settings = mergeMenuRuntimeSettings(state.settings, settings);
       const saveResult = await storage.saveGameVerified(state);
       if (!saveResult.success) throw new Error(saveResult.message);
@@ -1672,7 +1731,7 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
 
   const summary = continueSave?.summary;
   const continueSaveSize = continueSave ? assessSavePayloadSize(continueSave.byteLength) : null;
-  const summaryPlanet = summary ? MENU_PLANET_NAMES[summary.activePlanetId] : null;
+  const summaryPlanet = summary ? MENU_PLANET_NAMES[summary.activePlanetId] ?? "外环星域" : null;
   const cloudStateLabel = cloudSession.status === "authenticated" ? "云端已登录" : cloudSession.status === "offline" ? "云端离线" : cloudSession.status === "checking" ? "连接云节点" : "云端未登录";
   const cloudComparison = cloudSession.status === "authenticated" && cloudSession.user
     ? compareCloudSaveSummary(cloudSession.user.id, summary ? {
@@ -1687,21 +1746,8 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
 
   return (
     <main className="start-menu" data-reduced-motion={settings.reducedMotion ? "true" : "false"}>
-      <div className="start-menu-scene" aria-hidden="true">
-        <div className="start-menu-orbit start-menu-orbit--outer" />
-        <div className="start-menu-orbit start-menu-orbit--inner" />
-        <i className="start-menu-star" />
-        <span className="start-menu-scene-node start-menu-scene-node--ore">Fe</span>
-        <span className="start-menu-scene-node start-menu-scene-node--smelt">熔</span>
-        <span className="start-menu-scene-node start-menu-scene-node--assemble">制</span>
-        <span className="start-menu-scene-node start-menu-scene-node--matrix">矩</span>
-        <b className="start-menu-scene-line start-menu-scene-line--one" />
-        <b className="start-menu-scene-line start-menu-scene-line--two" />
-        <b className="start-menu-scene-line start-menu-scene-line--three" />
-      </div>
-
       <header className="start-menu-topbar">
-        <div className="start-menu-brand-mini"><img src={brandIconUrl} alt="" /><strong>DSP极简网络</strong></div>
+        <div className="start-menu-brand-mini"><img src={brandIconUrl} alt="" /><strong>{__APP_DISPLAY_NAME__}</strong></div>
         <div className="start-menu-language-prominent" role="group" aria-label="Language / 语言">
           <button className={locale === "zh-CN" ? "active" : ""} type="button" aria-pressed={locale === "zh-CN"} onClick={() => setLocale("zh-CN")}>中文</button>
           <button className={locale === "en" ? "active" : ""} type="button" aria-pressed={locale === "en"} onClick={() => setLocale("en")}>English</button>
@@ -1759,10 +1805,9 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
         </footer>
       </AccessibleDialog> : null}
 
-      {offlinePrompt ? <AccessibleDialog open title="选择离线结算方式" description="选择前原存档保持不变" className="start-menu-offline-decision start-menu-offline-choice" layout="bare" role="dialog" riskPolicy="explicit" ariaLabelledBy="offline-choice-title" ariaDescribedBy="offline-choice-description" portalTarget={document.querySelector<HTMLElement>(".start-menu")} onRequestClose={() => { setOfflinePrompt(null); setMessage({ tone: "warning", text: "已返回主菜单；原存档和离线时长保持不变" }); }}>
+      {offlinePrompt ? <AccessibleDialog open title="选择离线结算方式" description="选择前原存档保持不变" className="start-menu-offline-decision start-menu-offline-choice" layout="bare" role="dialog" riskPolicy="explicit" ariaLabelledBy="offline-choice-title" portalTarget={document.querySelector<HTMLElement>(".start-menu")} onRequestClose={() => { setOfflinePrompt(null); setMessage({ tone: "warning", text: "已返回主菜单；原存档和离线时长保持不变" }); }}>
         <header><Clock3 size={22} /><span><small>进入游戏前的离线收益</small><strong id="offline-choice-title">选择离线结算方式</strong></span></header>
         <div className="start-menu-offline-decision__summary"><span><small>离线时长</small><strong>{Math.floor(offlinePrompt.loaded.offlineSeconds).toLocaleString("zh-CN")} 秒</strong></span><span><small>档案分级</small><strong>{offlineProfileLabel(offlinePrompt.complexity.profile)}</strong></span><span><small>推荐方式</small><strong>{offlinePrompt.complexity.recommendedStrategy === "exact" ? "精确" : offlinePrompt.complexity.recommendedStrategy === "conservative" ? "快速（低内存保护）" : "快速"}</strong></span><span><small>快速预算</small><strong>{Math.ceil(offlinePrompt.complexity.recommendedDeadlineMs / 1_000 || 30)} 秒</strong></span></div>
-        <p id="offline-choice-description">选择前不会推进 savedAt，也不会消费离线区间。快速或精确结算完成并通过完整性校验后才会一次性保存。</p>
         {offlinePrompt.complexity.warning ? <small className="start-menu-offline-decision__reason">设备提示：{offlinePrompt.complexity.warning}</small> : null}
         <div className="start-menu-offline-choice__options"><button className="primary" type="button" onClick={() => void runOfflineChoice("fast")}><Gauge size={16} /><span><strong>快速结算（推荐）</strong><small>{offlineSettlementChoiceDescription("fast", offlinePrompt.loaded.offlineSeconds, offlinePrompt.complexity)}</small></span></button><button type="button" onClick={() => void runOfflineChoice("exact")}><Clock3 size={16} /><span><strong>精确结算</strong><small>{offlineSettlementChoiceDescription("exact", offlinePrompt.loaded.offlineSeconds, offlinePrompt.complexity)}</small></span></button><button className="warning" type="button" onClick={() => void runOfflineChoice("skip")}><SkipForward size={16} /><span><strong>放弃离线收益</strong><small>{offlineSettlementChoiceDescription("skip", offlinePrompt.loaded.offlineSeconds, offlinePrompt.complexity)}</small></span></button></div>
         <footer><button type="button" onClick={() => { setOfflinePrompt(null); setMessage({ tone: "warning", text: "已返回主菜单；原存档和离线时长保持不变" }); }}><X size={15} />暂不进入</button></footer>
@@ -1804,8 +1849,8 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
       <section className="start-menu-layout">
         <aside className="start-menu-command">
           <div className="start-menu-title">
-            <img src={brandIconUrl} alt="DSP极简网络" />
-            <span><small>母星工业节点</small><h1>DSP极简网络</h1><em>v{__APP_VERSION__}</em></span>
+            <img src={brandIconUrl} alt={__APP_DISPLAY_NAME__} />
+            <span><small>母星工业节点</small><h1>{__APP_DISPLAY_NAME__}</h1><em>v{__APP_VERSION__}</em></span>
           </div>
 
           <div className="start-menu-resume">
@@ -1823,10 +1868,12 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
           <nav className="start-menu-nav" aria-label="主菜单">
             <button className={view === "new" ? "active" : ""} type="button" disabled={!localSaveIndexReady} onClick={() => void requestNewGame(true)}><Plus size={17} /><span>新建游戏</span></button>
             <button className={view === "saves" ? "active" : ""} type="button" onClick={() => { setView("saves"); setMessage(null); }}><HardDrive size={17} /><span>加载存档</span><em>{slots.length}</em></button>
-            <button className={view === "cloud" ? "active" : ""} type="button" onClick={() => { setView("cloud"); setMessage(null); }}><Cloud size={17} /><span>登录与云存档</span></button>
+            <button className={view === "cloud" ? "active" : ""} type="button"
+              disabled={!cloudAuthAllowed || cloudSession.status === "offline"}
+              title={!cloudAuthAllowed || cloudSession.status === "offline" ? "云端节点不可用（需 HTTPS 且云服务在线）" : undefined}
+              onClick={() => { setView("cloud"); setMessage(null); }}><Cloud size={17} /><span>登录与云存档</span></button>
             <button className={view === "import" ? "active" : ""} type="button" onClick={() => fileInputRef.current?.click()}><FileUp size={17} /><span>导入存档</span></button>
             <button className={view === "settings" ? "active" : ""} type="button" onClick={() => { setView("settings"); setMessage(null); }}><Settings size={17} /><span>游戏设置</span></button>
-            {__APP_PLATFORM__ === "web" ? <a className="start-menu-download-link" href={NATIVE_DOWNLOAD_URL} target="_blank" rel="noreferrer" title="下载 Windows 或 Android 客户端"><Download size={17} /><span>客户端下载</span><em>测试版</em></a> : null}
           </nav>
           <input ref={fileInputRef} className="start-menu-file-input" type="file" accept="application/json,application/gzip,.json,.json.gz,.gz" aria-label="选择存档文件" onChange={async (event) => { const file = event.target.files?.[0]; if (file) await readImportFile(file); event.target.value = ""; }} />
         </aside>
@@ -1847,12 +1894,6 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
               <b />
               <span><i className="ready" /><strong>模拟核心</strong><small>待启动</small></span>
             </div>
-            <section className="start-menu-project-note" aria-label="项目说明">
-              <header><ShieldCheck size={16} /><strong>免费个人作品</strong><span><MessageCircle size={13} />QQ 交流群 1076757280</span></header>
-              <p>本项目为免费个人作品，仅供交流与学习使用。欢迎大家提出宝贵的意见与建议。</p>
-              <p>强烈推荐您在体验本项目之前，购买并游玩《戴森球计划》，相信它会为您带来更加丰富而精彩的游戏体验。</p>
-              <p>进入工厂后会使用本机生成的匿名标识统计游玩与在线人数，不采集完整存档或设备指纹。</p>
-            </section>
             <footer><button type="button" onClick={() => setView("saves")}><History size={15} />查看存档记录</button><button className="primary" type="button" disabled={busy || !localSaveIndexReady} onClick={continueSave ? () => void continueGame() : () => void requestNewGame()}><Play size={15} />{continueSave ? "进入工厂" : "建立工厂"}</button></footer>
           </div> : null}
 
@@ -1863,6 +1904,48 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
               <button type="button" role="radio" aria-checked={newFactoryMode === "speedrun"} className={newFactoryMode === "speedrun" ? "active" : ""} onClick={() => setNewFactoryMode("speedrun")}><strong>速通工厂</strong><small>新工厂独立计时，成绩需服务端校验后进入速通榜。</small></button>
             </div>
             {newFactoryMode === "speedrun" ? <section className="start-menu-speedrun-brief"><strong>速通规则 speedrun-v1 · 当前赛季 season_01</strong><p>目标：完成全部有限科技、实际发射 10,000 枚戴森火箭、累计生产 1,000,000 个宇宙矩阵。</p><small>暂停不计时；时间扭曲只加速生产，不倍速计时；离线有效时间只结算一次。无限科技不计入全科技目标，普通旧存档不能转换。</small></section> : null}
+            <section className="start-menu-genesis" aria-label="星系与难度生成选项">
+              <header><Sparkles size={15} /><strong>星系与难度</strong><small>按种子动态生成星图，仅对本存档生效</small></header>
+              <div className="start-menu-genesis-grid">
+                <label><span>星区种子</span>
+                  <input type="text" value={newGameSeedText} maxLength={32} placeholder={"留空则随机（当前目录 8 系）"}
+                    onChange={(event) => setNewGameSeedText(event.target.value)} />
+                </label>
+                <label><span>星系个数</span>
+                  <input type="number" min={GALAXY_SYSTEM_COUNT_MIN} max={GALAXY_SYSTEM_COUNT_MAX} step={1}
+                    value={newGalaxySystemCount}
+                    onChange={(event) => setNewGalaxySystemCount(Number(event.target.value))} />
+                  <small>8~32，含原目录 8 系</small>
+                </label>
+                <label><span>距离系数</span>
+                  <input type="number" min={GALAXY_DISTANCE_COEFFICIENT_MIN} max={GALAXY_DISTANCE_COEFFICIENT_MAX} step={0.1}
+                    value={newGalaxyDistance}
+                    onChange={(event) => setNewGalaxyDistance(Number(event.target.value))} />
+                  <small>0.5~10，乘算星系初始距离</small>
+                </label>
+                <label><span>矿物倍率</span>
+                  <span className="start-menu-genesis-inline">
+                    <input type="number" min={RESOURCE_MULTIPLIER_MIN} max={RESOURCE_MULTIPLIER_MAX} step={0.05}
+                      value={newVeinMultiplier} disabled={newVeinMultiplierInfinite}
+                      onChange={(event) => setNewVeinMultiplier(Number(event.target.value))} />
+                    <button type="button" className={newVeinMultiplierInfinite ? "active" : ""} aria-pressed={newVeinMultiplierInfinite}
+                      onClick={() => setNewVeinMultiplierInfinite((current) => !current)}>∞ 无限</button>
+                  </span>
+                  <small>0.01~100，作用于矿脉初始储量</small>
+                </label>
+                <label><span>发电倍率</span>
+                  <span className="start-menu-genesis-inline">
+                    <input type="number" min={RESOURCE_MULTIPLIER_MIN} max={RESOURCE_MULTIPLIER_MAX} step={0.05}
+                      value={newPowerMultiplier} disabled={newPowerMultiplierInfinite}
+                      onChange={(event) => setNewPowerMultiplier(Number(event.target.value))} />
+                    <button type="button" className={newPowerMultiplierInfinite ? "active" : ""} aria-pressed={newPowerMultiplierInfinite}
+                      onClick={() => setNewPowerMultiplierInfinite((current) => !current)}>∞ 无限</button>
+                  </span>
+                  <small>0.01~100，作用于发电设施输出</small>
+                </label>
+              </div>
+              <small className="start-menu-genesis-summary">预览：星系 {clampGalaxySystemCount(newGalaxySystemCount)} 个（8 系恒在） · 距离 ×{clampGalaxyDistance(newGalaxyDistance)} · 矿物 {newVeinMultiplierInfinite ? "∞" : formatResourceMultiplier(newVeinMultiplier)} · 发电 {newPowerMultiplierInfinite ? "∞" : formatResourceMultiplier(newPowerMultiplier)}</small>
+            </section>
             <div className="start-menu-new-loadout"><span><small>风力涡轮机</small><strong>3</strong></span><span><small>采矿机</small><strong>2</strong></span><span><small>熔炉</small><strong>3</strong></span><span><small>制造台</small><strong>3</strong></span><span><small>研究站</small><strong>2</strong></span><span><small>传送带</small><strong>10</strong></span></div>
             {(newFactoryMode === "speedrun" ? speedrunContinueSave : continueSave) ? <p className="start-menu-warning"><ShieldCheck size={16} />当前{newFactoryMode === "speedrun" ? "速通" : "普通"}工厂会先保存为自动快照，另一模式不会被覆盖。</p> : null}
             <footer><button type="button" onClick={() => setView("overview")}>取消</button><button className="primary" type="button" disabled={busy} onClick={() => void startNewGame()}><Plus size={15} />{busy ? "正在建立" : newFactoryMode === "speedrun" ? "确认并开始速通" : "开始新游戏"}</button></footer>
@@ -1871,15 +1954,16 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
           {view === "saves" ? <div className="start-menu-saves">
             <header><span><small>本地数据</small><strong>加载存档</strong></span><em>{slots.length + snapshots.length + (continueSave ? 1 : 0) + (speedrunContinueSave ? 1 : 0)} 个恢复点</em></header>
             <div className="start-menu-save-list">
-              {continueSave ? <article className="primary"><i><Save size={16} /></i><span><strong>普通模式 · {sourceLabel(continueSave.source)}</strong><small>{formatSavedAt(summary?.savedAt)} · {summaryPlanet} · 科技 {summary?.completedTechCount}</small></span><em>{formatRuntime(summary?.elapsedSeconds ?? 0)}</em><button type="button" disabled={busy} onClick={() => void continueGame()}><Play size={14} />载入</button></article> : null}
-              {speedrunContinueSave ? <article className="primary"><i><Gauge size={16} /></i><span><strong>速通模式 · {sourceLabel(speedrunContinueSave.source)}</strong><small>{formatSavedAt(speedrunContinueSave.summary.savedAt)} · {MENU_PLANET_NAMES[speedrunContinueSave.summary.activePlanetId]} · 科技 {speedrunContinueSave.summary.completedTechCount}</small></span><em>{formatRuntime(speedrunContinueSave.summary.elapsedSeconds)}</em><div className="start-menu-save-actions"><button type="button" disabled={busy} onClick={() => void continueGame("speedrun")}><Play size={14} />载入</button><button type="button" disabled={busy} onClick={() => setSpeedrunCopyRequest({ source: "main", label: "速通模式主存档" })} title="复制速通主存档为普通存档"><Copy size={14} />复制为普通</button></div></article> : null}
+              {continueSave ? <article className="primary"><i><Save size={16} /></i><span><strong>{continueSave.summary.name || `上次会话 · ${sourceLabel(continueSave.source)}`}<span className={`save-mode-chip save-mode-chip--normal`}>普通</span></strong><small>{formatSavedAt(continueSave.summary.savedAt)} · {summaryPlanet} · 科技 {continueSave.summary.completedTechCount}</small></span><em>{formatRuntime(continueSave.summary.elapsedSeconds ?? 0)}</em><div className="start-menu-save-actions"><button type="button" disabled={busy} onClick={() => void continueGame()} title="载入" aria-label="载入"><Play size={14} /></button><button type="button" disabled={busy} onClick={() => { setRenameValue(continueSave.summary.name ?? ""); setRenameRequest({ kind: "primary", mode: "normal", label: continueSave.summary.name || "普通模式主存档" }); }} title="重命名存档" aria-label="重命名存档"><Pencil size={14} /></button><button className="danger" type="button" disabled={busy} onClick={() => setDeleteRequest({ kind: "primary", mode: "normal", label: continueSave.summary.name || "普通模式主存档", details: `${formatSavedAt(continueSave.summary.savedAt)} · 上次会话 · 运行 ${formatRuntime(continueSave.summary.elapsedSeconds ?? 0)}` })} title="删除主存档" aria-label="删除主存档"><Trash2 size={14} /></button></div></article> : null}
+              {speedrunContinueSave ? <article className="primary"><i><Gauge size={16} /></i><span><strong>{speedrunContinueSave.summary.name || `上次会话 · ${sourceLabel(speedrunContinueSave.source)}`}<span className="save-mode-chip save-mode-chip--speedrun">速通</span></strong><small>{formatSavedAt(speedrunContinueSave.summary.savedAt)} · {MENU_PLANET_NAMES[speedrunContinueSave.summary.activePlanetId] ?? "外环星域"} · 科技 {speedrunContinueSave.summary.completedTechCount}</small></span><em>{formatRuntime(speedrunContinueSave.summary.elapsedSeconds)}</em><div className="start-menu-save-actions"><button type="button" disabled={busy} onClick={() => void continueGame("speedrun")} title="载入" aria-label="载入"><Play size={14} /></button><button type="button" disabled={busy} onClick={() => setSpeedrunCopyRequest({ source: "main", label: "速通模式主存档" })} title="复制速通主存档为普通存档" aria-label="复制速通主存档为普通存档"><Copy size={14} /></button><button type="button" disabled={busy} onClick={() => { setRenameValue(speedrunContinueSave.summary.name ?? ""); setRenameRequest({ kind: "primary", mode: "speedrun", label: speedrunContinueSave.summary.name || "速通模式主存档" }); }} title="重命名存档" aria-label="重命名存档"><Pencil size={14} /></button><button className="danger" type="button" disabled={busy} onClick={() => setDeleteRequest({ kind: "primary", mode: "speedrun", label: speedrunContinueSave.summary.name || "速通模式主存档", details: `${formatSavedAt(speedrunContinueSave.summary.savedAt)} · 上次会话 · 运行 ${formatRuntime(speedrunContinueSave.summary.elapsedSeconds)}` })} title="删除主存档" aria-label="删除主存档"><Trash2 size={14} /></button></div></article> : null}
               {(["normal", "speedrun"] as SaveMode[]).flatMap((mode) => ([1, 2, 3] as SaveSlotId[]).map((slotId) => {
                 const slot = slots.find((candidate) => candidate.mode === mode && candidate.slotId === slotId);
                 const modeLabel = mode === "speedrun" ? "速通模式" : "普通模式";
-                return <article className={slot ? "" : "empty"} key={`${mode}-${slotId}`}><i><HardDrive size={16} /></i><span><strong>{modeLabel} · 本地槽位 {slotId}</strong><small>{slot ? `${formatSavedAt(slot.savedAt)} · ${MENU_PLANET_NAMES[slot.activePlanetId]} · 科技 ${slot.completedTechCount}` : "空槽位"}</small></span><em>{slot ? formatRuntime(slot.elapsedSeconds) : "--"}</em><div className="start-menu-save-actions"><button type="button" disabled={busy || !slot?.valid} onClick={() => void loadSlot(slotId, mode)}><Upload size={14} />载入</button>{mode === "speedrun" && slot?.valid ? <button type="button" disabled={busy} onClick={() => setSpeedrunCopyRequest({ source: slotId, label: `速通模式槽位 ${slotId}` })} title={`复制速通模式槽位 ${slotId} 为普通存档`}><Copy size={14} />复制为普通</button> : null}<button className="danger" type="button" disabled={busy || !slot} onClick={() => slot && setDeleteRequest({ slotId, mode, label: `${modeLabel}槽位 ${slotId}`, details: `${formatSavedAt(slot.savedAt)} · ${MENU_PLANET_NAMES[slot.activePlanetId]} · 运行 ${formatRuntime(slot.elapsedSeconds)} · 科技 ${slot.completedTechCount}` })} title={`删除${modeLabel}槽位 ${slotId}`} aria-label={`删除${modeLabel}槽位 ${slotId}`}><Trash2 size={14} /></button></div></article>;
+                const rowTitle = slot?.name || `本地槽位 ${slotId}`;
+                return <article className={slot ? "" : "empty"} key={`${mode}-${slotId}`}><i><HardDrive size={16} /></i><span><strong>{rowTitle}<span className={`save-mode-chip save-mode-chip--${mode}`}>{mode === "speedrun" ? "速通" : "普通"}</span></strong><small>{slot ? `${formatSavedAt(slot.savedAt)} · ${MENU_PLANET_NAMES[slot.activePlanetId] ?? "外环星域"} · 科技 ${slot.completedTechCount}` : "空槽位"}</small></span><em>{slot ? formatRuntime(slot.elapsedSeconds) : "--"}</em><div className="start-menu-save-actions"><button type="button" disabled={busy || !slot?.valid} onClick={() => void loadSlot(slotId, mode)} title="载入" aria-label="载入"><Upload size={14} /></button>{mode === "speedrun" && slot?.valid ? <button type="button" disabled={busy} onClick={() => setSpeedrunCopyRequest({ source: slotId, label: `速通模式槽位 ${slotId}` })} title={`复制速通模式槽位 ${slotId} 为普通存档`} aria-label={`复制速通模式槽位 ${slotId} 为普通存档`}><Copy size={14} /></button> : null}{slot ? <button type="button" disabled={busy} onClick={() => { setRenameValue(slot.name ?? ""); setRenameRequest({ kind: "slot", slotId, mode, label: `${modeLabel}槽位 ${slotId}` }); }} title="重命名存档" aria-label="重命名存档"><Pencil size={14} /></button> : null}<button className="danger" type="button" disabled={busy || !slot} onClick={() => slot && setDeleteRequest({ kind: "slot", slotId, mode, label: `${modeLabel}槽位 ${slotId}`, details: `${formatSavedAt(slot.savedAt)} · ${MENU_PLANET_NAMES[slot.activePlanetId] ?? "外环星域"} · 运行 ${formatRuntime(slot.elapsedSeconds)} · 科技 ${slot.completedTechCount}` })} title={`删除${modeLabel}槽位 ${slotId}`} aria-label={`删除${modeLabel}槽位 ${slotId}`}><Trash2 size={14} /></button></div></article>;
               }))}
             </div>
-              {snapshots.length > 0 ? <section className="start-menu-snapshots"><header><History size={14} /><strong>最近快照</strong><small>自动 {automaticSnapshotCount}/2 · 手动 {manualSnapshotCount}</small></header>{snapshots.slice(0, 6).map((snapshot) => <button type="button" disabled={busy || !snapshot.valid} onClick={() => void loadSnapshot(snapshot.id, snapshot.mode)} key={`${snapshot.mode}-${snapshot.id}`}><span><strong>{snapshot.mode === "speedrun" ? "速通模式 · " : "普通模式 · "}{snapshot.reason}</strong><small>{formatSavedAt(snapshot.savedAt)} · 科技 {snapshot.completedTechCount}</small></span><em>{formatRuntime(snapshot.elapsedSeconds)}</em><RefreshCw size={13} /></button>)}</section> : null}
+              {snapshots.length > 0 ? <section className="start-menu-snapshots"><header><History size={14} /><strong>最近快照</strong><small>自动 {automaticSnapshotCount}/2 · 手动 {manualSnapshotCount}</small></header>{snapshots.slice(0, 6).map((snapshot) => { const snapshotTitle = snapshot.name || snapshot.reason; return <div className="start-menu-snapshot-row" key={`${snapshot.mode}-${snapshot.id}`}><button type="button" disabled={busy || !snapshot.valid} onClick={() => void loadSnapshot(snapshot.id, snapshot.mode)}><span><strong>{snapshotTitle}<span className={`save-mode-chip save-mode-chip--${snapshot.mode}`}>{snapshot.mode === "speedrun" ? "速通" : "普通"}</span></strong><small>{formatSavedAt(snapshot.savedAt)} · 科技 {snapshot.completedTechCount}</small></span><em>{formatRuntime(snapshot.elapsedSeconds)}</em><RefreshCw size={13} /></button><div className="start-menu-save-actions"><button type="button" disabled={busy} onClick={() => { setRenameValue(snapshot.name ?? ""); setRenameRequest({ kind: "snapshot", id: snapshot.id, mode: snapshot.mode, label: snapshot.reason || "快照" }); }} title="重命名快照" aria-label="重命名快照"><Pencil size={13} /></button><button className="danger" type="button" disabled={busy} onClick={() => setDeleteRequest({ kind: "snapshot", id: snapshot.id, mode: snapshot.mode, label: snapshot.name || snapshot.reason || "快照", details: `${formatSavedAt(snapshot.savedAt)} · 快照 · 运行 ${formatRuntime(snapshot.elapsedSeconds)}` })} title="删除快照" aria-label="删除快照"><Trash2 size={13} /></button></div></div>; })}</section> : null}
           </div> : null}
 
           {view === "cloud" ? <Suspense fallback={<div className="start-menu-cloud"><div className="start-menu-cloud-offline"><Activity size={24} /><span><strong>正在载入云存档面板</strong><small>本地存档保持可用</small></span></div></div>}><div className="start-menu-cloud">
@@ -1924,34 +2008,63 @@ export function StartMenu({ onEnterGame, onOpenReleaseNotes }: StartMenuProps) {
           {view === "settings" ? <div className="start-menu-settings">
             <header><span><small>本机运行参数</small><strong>游戏设置</strong></span><em>即时生效</em></header>
             <section><header><Type size={15} /><strong>字体大小</strong><small>{Math.round(settings.fontScale * 100)}%</small></header><div className="start-menu-segments">{FONT_SCALES.map((scale) => <button className={settings.fontScale === scale ? "active" : ""} type="button" key={scale} onClick={() => updateMenuSettings({ fontScale: scale })}>{Math.round(scale * 100)}%</button>)}</div></section>
-            <section><header><Palette size={15} /><strong>界面主题</strong><small>{{ dark: "深色", light: "亮色", system: "跟随系统" }[settings.theme]}</small></header><div className="start-menu-segments">{(["dark", "light", "system"] as const).map((theme) => <button className={settings.theme === theme ? "active" : ""} type="button" key={theme} onClick={() => updateMenuSettings({ theme })}>{{ dark: "深色", light: "亮色", system: "跟随系统" }[theme]}</button>)}</div></section>
             <section><header><Languages size={15} /><strong>语言</strong><small>{locale === "en" ? "English" : "简体中文"}</small></header><div className="start-menu-segments" aria-label="语言"><button className={locale === "zh-CN" ? "active" : ""} type="button" aria-pressed={locale === "zh-CN"} onClick={() => setLocale("zh-CN")}>简体中文</button><button className={locale === "en" ? "active" : ""} type="button" aria-pressed={locale === "en"} onClick={() => setLocale("en")}>English</button></div></section>
             <section><header><Factory size={15} /><strong>科技树布局</strong><small>{settings.technologyLayout === "compact" ? "精简" : "标准"}</small></header><div className="start-menu-segments">{(["standard", "compact"] as const).map((technologyLayout) => <button className={settings.technologyLayout === technologyLayout ? "active" : ""} type="button" key={technologyLayout} onClick={() => updateMenuSettings({ technologyLayout })}>{technologyLayout === "compact" ? "精简模式" : "标准模式"}</button>)}</div></section>
             <section><header><Zap size={15} /><strong>模拟速度</strong><small>{settings.simulationSpeed}×</small></header><div className="start-menu-segments">{SIMULATION_SPEEDS.map((speed) => <button className={settings.simulationSpeed === speed ? "active" : ""} type="button" key={speed} onClick={() => updateMenuSettings({ simulationSpeed: speed })}>{speed}×</button>)}</div></section>
             <section><header><Clock3 size={15} /><strong>自动保存</strong><small>{settings.autosaveIntervalSeconds === 0 ? "已关闭" : settings.autosaveIntervalSeconds >= 600 ? `${settings.autosaveIntervalSeconds / 60} 分钟` : `${settings.autosaveIntervalSeconds} 秒`}</small></header><div className="start-menu-segments">{AUTOSAVE_INTERVALS.map((seconds) => <button className={settings.autosaveIntervalSeconds === seconds ? "active" : ""} type="button" key={seconds} onClick={() => updateMenuSettings({ autosaveIntervalSeconds: seconds })}>{seconds === 0 ? "关闭" : seconds >= 600 ? `${seconds / 60} 分钟` : `${seconds} 秒`}</button>)}</div>{settings.autosaveIntervalSeconds === 0 ? <small className="settings-warning">关闭后，刷新页面或异常退出可能丢失未保存进度；手动保存和云同步不受影响。</small> : null}</section>
-            <section className="start-menu-offline-strategy"><header><Gauge size={15} /><strong>离线结算策略</strong><small>仅保存在当前设备</small></header><div className="start-menu-segments" role="radiogroup" aria-label="离线结算策略">{(["ask", "exact", "skip"] as OfflineSettlementPreference[]).map((preference) => <button className={offlineSettlementPreference === preference ? "active" : ""} type="button" role="radio" aria-checked={offlineSettlementPreference === preference} key={preference} onClick={() => { writeOfflineSettlementPreference(preference); setOfflineSettlementPreference(preference); }}>{preference === "ask" ? "自动：失败后询问" : preference === "exact" ? "始终精确" : "失败后优先跳过"}</button>)}</div><small className="settings-warning">默认先尝试受校验的快速结算；失败、超时或低内存降级只生成保守预览，不会自动写入。即使选择“优先跳过”，每次仍须二次确认收益为 0。</small></section>
+            <section className="start-menu-offline-strategy"><header><Gauge size={15} /><strong>离线结算策略</strong><small>仅保存在当前设备</small></header><div className="start-menu-segments" role="radiogroup" aria-label="离线结算策略">{(["ask", "exact", "skip"] as OfflineSettlementPreference[]).map((preference) => <button className={offlineSettlementPreference === preference ? "active" : ""} type="button" role="radio" aria-checked={offlineSettlementPreference === preference} key={preference} onClick={() => { writeOfflineSettlementPreference(preference); setOfflineSettlementPreference(preference); }}>{preference === "ask" ? "自动：失败后询问" : preference === "exact" ? "始终精确" : "失败后优先跳过"}</button>)}</div></section>
             <section className="start-menu-setting-toggles"><ToggleRow checked={settings.performanceMode} label="性能模式" value={settings.performanceMode ? "低频渲染" : "完整渲染"} icon={<Cpu size={16} />} onChange={(performanceMode) => updateMenuSettings({ performanceMode })} /><ToggleRow checked={settings.reducedMotion} label="减少动态效果" value={settings.reducedMotion ? "动态已精简" : "完整动态"} icon={<Gauge size={16} />} onChange={(reducedMotion) => updateMenuSettings({ reducedMotion })} /><ToggleRow checked={settings.soundEnabled} label="操作音效" value={settings.soundEnabled ? "已开启" : "已关闭"} icon={settings.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />} onChange={(soundEnabled) => updateMenuSettings({ soundEnabled })} /><ToggleRow checked={settings.allowDoubleClickZoom} label="允许双击缩放" value={settings.allowDoubleClickZoom ? "双击聚焦画布" : "连续点击不缩放"} icon={<MousePointer2 size={16} />} onChange={(allowDoubleClickZoom) => updateMenuSettings({ allowDoubleClickZoom })} /><ToggleRow checked={showRunLog} label="显示运行记录" value={showRunLog ? "显示运行反馈浮条" : "仅保留错误、成就和诊断"} icon={<Activity size={16} />} onChange={updateRunLogPreference} /></section>
             <Suspense fallback={null}><NativeUpdateCard className="start-menu-native-update" /></Suspense>
             <section className="start-menu-release-notes"><header><History size={15} /><strong>版本更新记录</strong><small>{currentReleaseNotes.date}</small></header><button type="button" onClick={onOpenReleaseNotes} aria-label={`查看${currentReleaseNotes.date}版本更新记录`}><span><strong>{currentReleaseNotes.title}</strong><small>{currentReleaseNotes.items.length} 项体验更新</small></span><ArrowRight size={15} /></button></section>
-            <section className="start-menu-community"><header><MessageCircle size={15} /><strong>QQ 交流群</strong><small>意见、建议与问题反馈</small></header><p>群号 <strong>1076757280</strong></p></section>
           </div> : null}
 
           {message ? <div className={`start-menu-message start-menu-message--${message.tone}`} role="status">{message.tone === "ready" ? <Check size={14} /> : <Activity size={14} />}<span>{message.text}</span></div> : null}
         </section>
       </section>
 
-      <footer className="start-menu-footer"><span><i className="ready" />模拟核心按需载入</span><span><ShieldCheck size={12} />载入时校验存档</span><span>{window.isSecureContext ? "HTTPS" : "HTTP"} · {window.location.hostname || "Desktop"}</span></footer>
       <SaveDeleteDialog target={deleteRequest} onCancel={() => setDeleteRequest(null)} onDelete={() => {
         if (!deleteRequest) return;
         setBusy(true);
-        void loadStorageModule().then(async ({ clearGameSlotVerified }) => {
-          const removed = await clearGameSlotVerified(deleteRequest.slotId, deleteRequest.mode);
+        void loadStorageModule().then(async ({ clearGameSlotVerified, clearPrimarySaveVerified, clearSaveSnapshotVerified }) => {
+          const removed = deleteRequest.kind === "slot"
+            ? await clearGameSlotVerified(deleteRequest.slotId, deleteRequest.mode)
+            : deleteRequest.kind === "primary"
+              ? await clearPrimarySaveVerified(deleteRequest.mode)
+              : await clearSaveSnapshotVerified(deleteRequest.id, deleteRequest.mode);
           if (!removed) throw new Error(`${deleteRequest.label}删除失败`);
           refreshLocalSaves();
-          setMessage({ tone: "ready", text: `${deleteRequest.label}已删除，其他存档未受影响` });
+          setMessage({ tone: "ready", text: `${deleteRequest.label}已删除` });
           setDeleteRequest(null);
         }).catch((error) => setMessage({ tone: "error", text: error instanceof Error ? error.message : "本地存档删除失败" })).finally(() => setBusy(false));
       }} />
+      <AccessibleDialog
+        open={renameRequest !== null}
+        role="dialog"
+        riskPolicy="dismissible"
+        title={<><Pencil aria-hidden="true" size={18} /> 重命名存档</>}
+        description={`重命名 ${renameRequest?.label ?? ""}`}
+        onRequestClose={() => setRenameRequest(null)}
+        actions={<>
+          <button type="button" onClick={() => setRenameRequest(null)}><X aria-hidden="true" size={14} />取消</button>
+          <button className="primary" type="button" disabled={busy} onClick={() => {
+            if (!renameRequest) return;
+            setBusy(true);
+            void loadStorageModule().then(async ({ renameLocalSaveVerified }) => {
+              const renamed = await renameLocalSaveVerified(renameRequest, renameValue);
+              if (!renamed) throw new Error(`${renameRequest.label}重命名失败`);
+              refreshLocalSaves();
+              setMessage({ tone: "ready", text: renameValue.trim() ? `已重命名为「${renameValue.trim().slice(0, SAVE_NAME_MAX_LENGTH)}」` : "已清除存档名称" });
+              setRenameRequest(null);
+            }).catch((error) => setMessage({ tone: "error", text: error instanceof Error ? error.message : "存档重命名失败" })).finally(() => setBusy(false));
+          }}><Check aria-hidden="true" size={14} />保存名称</button>
+        </>}
+      >
+        <label className="start-menu-rename-field">
+          <span>存档名称（留空恢复默认标签，最长 {SAVE_NAME_MAX_LENGTH} 字）</span>
+          <StableTextInput draftId="start-menu-save-rename" value={renameValue} onValueChange={setRenameValue}
+            placeholder={renameRequest?.label ?? ""} aria-label="存档名称" />
+        </label>
+      </AccessibleDialog>
       <SaveDeleteDialog target={cloudDeleteRequest} onCancel={() => setCloudDeleteRequest(null)} onDelete={() => void deleteSelectedCloudSave()} />
       <SpeedrunCopyDialog
         sourceLabel={speedrunCopyRequest?.label ?? null}

@@ -166,7 +166,7 @@ export function advancePureIdleReplicationInPlace(
     const amount = scaledAmount(perWindow ?? 0n, simulationMicros, windowMicros, `rocket:${systemId}`, remainders);
     if (amount > 0n) launchesBySystem[systemId] = safeIntegerNumber(amount);
   }
-  const launchedRockets = advanceDysonRocketMacroInPlace(state, launchesBySystem);
+  const launchedRockets = advanceDysonRocketMacroInPlace(state, launchesBySystem as Readonly<Record<string, number>>);
 
   let absorbedSails = 0;
   for (const [systemId, perWindow] of Object.entries(contract.sailsBySystem) as Array<[StarSystemId, bigint | undefined]>) {

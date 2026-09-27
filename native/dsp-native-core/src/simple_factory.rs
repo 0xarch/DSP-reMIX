@@ -1038,7 +1038,9 @@ fn collect_renewable_power_facility_patches_with_runtime(
             .get(&entity_index)
             .copied()
             .unwrap_or(0.0);
-        let rated = building.power_generation_kw * finite_number(object.get("machineCount"));
+        let rated = building.power_generation_kw
+            * finite_number(object.get("machineCount"))
+            * power_generation_multiplier(state);
         Ok(RenewablePowerFacilityPatch {
             entity_index,
             power_output_kw: rounded(output, 2),
@@ -1358,8 +1360,9 @@ fn probe_planet_metric(
         probe.reserve_kind = PlanetReserveKind::Fuel;
         probe.reserve_primary =
             fuel_energy_available(state, entity, building) * building.fuel_efficiency;
-        probe.reserve_secondary =
-            building.power_generation_kw * finite_number(entity.get("machineCount"));
+        probe.reserve_secondary = building.power_generation_kw
+            * finite_number(entity.get("machineCount"))
+            * power_generation_multiplier(state);
     }
     Ok(probe)
 }
@@ -1620,6 +1623,28 @@ fn power_generation_capacity_in_js_order(runtime: &GridRuntime) -> (f64, f64) {
     (base_generation_kw, generation_kw)
 }
 
+/// 精准难度：发电倍率（settings.powerGenerationMultiplier，"Infinity" 哨兵
+/// 与 JS 端一致地以 1e15 有限大数参与功率计算，保证状态可序列化）。
+fn power_generation_multiplier(state: &CoreState) -> f64 {
+    let raw = state
+        .base_value()
+        .get("settings")
+        .and_then(|settings| settings.get("powerGenerationMultiplier"));
+    let value = match raw {
+        Some(Value::String(text)) if text == "Infinity" => f64::INFINITY,
+        Some(Value::Number(number)) => number.as_f64().unwrap_or(1.0),
+        _ => 1.0,
+    };
+    let normalized = if value.is_finite() && (0.01..=100.0).contains(&value) {
+        value
+    } else if value == f64::INFINITY {
+        1e15
+    } else {
+        1.0
+    };
+    normalized
+}
+
 fn probe_power_source(
     state: &CoreState,
     entities: &[Value],
@@ -1628,6 +1653,7 @@ fn probe_power_source(
     production_buffer_limit: f64,
     seconds: f64,
     entity_index: usize,
+    generation_multiplier: f64,
 ) -> anyhow::Result<Option<PowerSourceProbe>> {
     let object = entities[entity_index]
         .as_object()
@@ -1682,7 +1708,7 @@ fn probe_power_source(
     }
     if is_fuel_generator(building_id) {
         let available = fuel_energy_available(state, object, building);
-        let rated = building.power_generation_kw * machine_count;
+        let rated = building.power_generation_kw * machine_count * generation_multiplier;
         let capacity = rated.min(available * building.fuel_efficiency * 1_000.0 / seconds);
         probe.fuel_electric_energy_mj = available * building.fuel_efficiency;
         probe.rated_fuel_generator_kw = rated;
@@ -1705,8 +1731,8 @@ fn probe_power_source(
         let capacity_mj = energy_capacity(object, building);
         probe.stored_energy_mj = stored;
         probe.storage_capacity_mj = capacity_mj;
-        let discharge =
-            (building.power_generation_kw * machine_count).min(stored * 1_000.0 / seconds);
+        let discharge = (building.power_generation_kw * machine_count * generation_multiplier)
+            .min(stored * 1_000.0 / seconds);
         let charge = (building.power_charge_kw * machine_count)
             .min((capacity_mj - stored).max(0.0) * 1_000.0 / seconds);
         if discharge > EPSILON {
@@ -1747,8 +1773,8 @@ fn probe_power_source(
             } else {
                 0.0
             };
-            let discharge =
-                (building.power_generation_kw * machine_count).min(available * 1_000.0 / seconds);
+            let discharge = (building.power_generation_kw * machine_count * generation_multiplier)
+                .min(available * 1_000.0 / seconds);
             if discharge > EPSILON {
                 probe.dispatch_candidate = Some(PowerCandidate {
                     entity_index,
@@ -1788,7 +1814,7 @@ fn probe_power_source(
         "geothermal_power_station" => profiles[planet_index].geothermal_multiplier,
         _ => profiles[planet_index].wind_multiplier,
     };
-    let output = building.power_generation_kw * machine_count * multiplier;
+    let output = building.power_generation_kw * machine_count * multiplier * generation_multiplier;
     probe.base_generation_kw = output;
     probe.power_output_kw = Some(output);
     match building_id {
@@ -1900,6 +1926,7 @@ fn collect_power_sources_with_runtime(
                 production_buffer_limit,
                 seconds,
                 entity_index,
+                power_generation_multiplier(state),
             )
         },
     )
@@ -2814,7 +2841,7 @@ fn probe_vein_settlement(
         environment.profiles[planet],
         environment.context.infinite_resource_mode,
         environment.context.finite_consumption_tenths,
-    );
+    ) || object.get("resourceInfinite").and_then(Value::as_bool) == Some(true);
     let output_allowance = if infinite {
         f64::INFINITY
     } else {

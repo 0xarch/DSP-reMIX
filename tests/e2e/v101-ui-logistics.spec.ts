@@ -13,8 +13,8 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function seedUiState(page: Page, options: { theme?: "dark" | "light"; fontScale?: number; paused?: boolean } = {}) {
-  await page.addInitScript(({ theme, fontScale, paused, releaseNoteId }) => {
+async function seedUiState(page: Page, options: { fontScale?: number; paused?: boolean } = {}) {
+  await page.addInitScript(({ fontScale, paused, releaseNoteId }) => {
     const entityBase = {
       planetId: "home",
       minerCount: 0,
@@ -49,7 +49,7 @@ async function seedUiState(page: Page, options: { theme?: "dark" | "light"; font
         completedTechIds: ["electromagnetism", "proliferator_1", "plane_smelting"],
       },
       settings: {
-        theme,
+        theme: "dark",
         fontScale,
         simulationSpeed: 1,
         autosaveIntervalSeconds: 30,
@@ -64,7 +64,6 @@ async function seedUiState(page: Page, options: { theme?: "dark" | "light"; font
       window.sessionStorage.setItem("dsp-idle-network.v101-fixture-seeded", "1");
     }
   }, {
-    theme: options.theme ?? "dark",
     fontScale: options.fontScale ?? 1,
     paused: options.paused ?? true,
     releaseNoteId: RELEASE_NOTE_ID,
@@ -272,11 +271,10 @@ test("inspector order and collapse are local preferences and survive reload", as
   await expect.poll(() => page.evaluate(() => JSON.parse(window.localStorage.getItem("dsp-idle-network.inspector-layout.v1") ?? "{}").order?.[0])).toBe("power");
 });
 
-test("light lazy workspaces, storage geometry and 100M tray remain usable at 200 percent", async ({ page }) => {
-  await seedUiState(page, { theme: "light", fontScale: 2 });
+test("lazy workspaces, storage geometry and 100M tray remain usable at 200 percent", async ({ page }) => {
+  await seedUiState(page, { fontScale: 2 });
   await page.setViewportSize({ width: 1440, height: 900 });
   await openGame(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   for (const name of ["小型储物仓", "储液罐"]) {
     const node = page.locator(".react-flow__node").filter({ hasText: name });
@@ -316,8 +314,8 @@ test("light lazy workspaces, storage geometry and 100M tray remain usable at 200
   await page.screenshot({ path: "artifacts/qa/v101-light-storage-codex-font-200-1440x900.png", fullPage: true });
 });
 
-test("next mobile light shell keeps lazy surfaces themed in portrait and landscape", async ({ page }) => {
-  await seedUiState(page, { theme: "light", fontScale: 2 });
+test("next mobile shell keeps lazy surfaces usable in portrait and landscape", async ({ page }) => {
+  await seedUiState(page, { fontScale: 2 });
   for (const viewport of [
     { width: 390, height: 844, shot: "portrait" },
     { width: 844, height: 390, shot: "landscape" },
@@ -334,7 +332,7 @@ test("next mobile light shell keeps lazy surfaces themed in portrait and landsca
     await page.getByRole("button", { name: "更多", exact: true }).click();
     const hub = page.locator(".mobile-next-workspace-hub");
     const hubBackground = await hub.evaluate((element) => getComputedStyle(element).backgroundColor);
-    expect(rgbLuminance(hubBackground)).toBeGreaterThan(210);
+    expect(rgbLuminance(hubBackground)).toBeLessThan(90);
     await hub.getByRole("button", { name: /生产资料库/ }).first().click();
     const codex = page.getByRole("dialog", { name: "生产资料库" });
     await expect(codex).toBeVisible();
@@ -344,11 +342,10 @@ test("next mobile light shell keeps lazy surfaces themed in portrait and landsca
   }
 });
 
-test("next mobile full inspector stays visible above the light theme surface", async ({ page }) => {
-  await seedUiState(page, { theme: "light", fontScale: 1 });
+test("next mobile full inspector stays visible above the theme surface", async ({ page }) => {
+  await seedUiState(page, { fontScale: 1 });
   await page.setViewportSize({ width: 390, height: 844 });
   await openGame(page, "/?mobileUi=next");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 
   await page.locator('.react-flow__node[data-id="smelter"]').click();
   const quickInspector = page.getByRole("dialog", { name: "电弧熔炉" });
@@ -371,8 +368,8 @@ test("next mobile full inspector stays visible above the light theme surface", a
   await page.screenshot({ path: "artifacts/qa/v123-mobile-light-full-inspector-390x844.png", fullPage: true });
 });
 
-test("dark light dark switching and the classic mobile tablet matrix stay bounded", async ({ page }) => {
-  await seedUiState(page, { theme: "dark", fontScale: 1 });
+test("the classic mobile tablet matrix stays bounded", async ({ page }) => {
+  await seedUiState(page, { fontScale: 1 });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await openGame(page);
 
@@ -394,23 +391,6 @@ test("dark light dark switching and the classic mobile tablet matrix stay bounde
   }
   await page.keyboard.press("Escape");
 
-  await page.getByTitle("打开设置").click();
-  const operations = page.getByRole("dialog", { name: "运营中心" });
-  await operations.getByLabel("界面主题").getByRole("button", { name: "亮色", exact: true }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.keyboard.press("Escape");
-  await page.getByLabel("打开生产资料库").click();
-  codex = page.getByRole("dialog", { name: "生产资料库" });
-  for (const scale of [0.8, 1, 1.5, 2]) {
-    await setVisualFontScale(scale);
-    await assertBounded();
-    await page.screenshot({ path: `artifacts/qa/v101-desktop-light-font-${Math.round(scale * 100)}-1920x1080.png`, fullPage: true });
-  }
-  await page.keyboard.press("Escape");
-
-  await page.getByTitle("打开设置").click();
-  await operations.getByLabel("界面主题").getByRole("button", { name: "深色", exact: true }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.keyboard.press("Escape");
   await setVisualFontScale(1);
   await page.screenshot({ path: "artifacts/qa/v101-desktop-dark-return-1920x1080.png", fullPage: true });

@@ -54,8 +54,8 @@
   overscroll-behavior-x: contain;
   scrollbar-color: var(--theme-border-strong) transparent;
   scrollbar-width: thin;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, var(--tone-black) 12px, var(--tone-black) calc(100% - 12px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, var(--tone-black) 12px, var(--tone-black) calc(100% - 12px), transparent 100%);
 }
 
 .codex-section-nav button {
@@ -64,7 +64,7 @@
   padding: 5px 7px;
   overflow: hidden;
   border: 1px solid var(--theme-border);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--theme-surface-raised);
   color: var(--theme-text-muted);
   font-size: 10px;
@@ -122,7 +122,7 @@
   gap: 7px;
   padding: 7px;
   border: 1px solid var(--theme-border);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--theme-surface-raised);
   color: var(--theme-text-soft);
   text-align: left;
@@ -140,7 +140,7 @@
   height: 30px;
   place-items: center;
   border: 1px solid var(--theme-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .codex-index button > span,
@@ -188,7 +188,7 @@
   gap: 6px;
   padding: 0 9px;
   border: 1px solid var(--theme-border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--theme-surface-inset);
   color: var(--theme-text-muted);
 }
@@ -229,7 +229,7 @@
   height: 44px;
   place-items: center;
   border: 1px solid var(--theme-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   color: var(--cyan);
 }
 
@@ -242,7 +242,7 @@
 .codex-detail-heading small { color: var(--theme-text-muted); font-size: 9px; }
 .codex-detail-heading strong { font-size: 16px; }
 .codex-detail-heading p { margin: 0; color: var(--theme-text-muted); font-size: 10px; line-height: 1.55; }
-.codex-detail-heading > b { padding: 4px 7px; border: 1px solid var(--theme-border-strong); border-radius: 4px; color: var(--green); font-size: 9px; }
+.codex-detail-heading > b { padding: 4px 7px; border: 1px solid var(--theme-border-strong); border-radius: var(--radius-sm) color: var(--green); font-size: 9px; }
 
 .codex-metrics {
   display: grid;
@@ -298,7 +298,7 @@
   gap: 5px;
   padding: 5px 7px;
   border: 1px solid var(--theme-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--theme-surface-raised);
   color: var(--theme-text-soft);
   text-align: left;
@@ -316,7 +316,7 @@
   gap: 7px;
   padding: 6px 9px;
   border: 1px solid var(--theme-border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--theme-surface-raised);
   color: var(--theme-text-muted);
 }
@@ -324,7 +324,7 @@
 .codex-tech-link strong { color: var(--cyan); }
 
 .codex-recipe-list { display: grid; gap: 7px; }
-.codex-recipe-row { border: 1px solid var(--theme-border); border-radius: 5px; background: var(--theme-control); }
+.codex-recipe-row { border: 1px solid var(--theme-border); border-radius: var(--radius-md) background: var(--theme-control); }
 .codex-recipe-row > header { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 9px; border-bottom: 1px solid var(--theme-border); }
 .codex-recipe-row > header span { display: grid; min-width: 0; gap: 2px; }
 .codex-recipe-row > header strong { font-size: 11px; }
@@ -348,7 +348,7 @@
   min-width: 0;
   padding: 9px;
   border: 1px solid var(--theme-border);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: var(--theme-control);
 }
 

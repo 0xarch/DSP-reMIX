@@ -11,7 +11,7 @@
 
 .save-snapshot-row--protected { background: color-mix(in srgb, var(--yellow) 5%, transparent); }
 .save-snapshot-row > div strong { display: flex; min-width: 0; align-items: center; gap: 5px; }
-.save-snapshot-row > div strong em { padding: 1px 4px; border: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--line)); border-radius: 999px; color: var(--yellow); font-size: calc(9px * var(--ui-font-scale, 1)); font-style: normal; font-weight: 600; }
+.save-snapshot-row > div strong em { padding: 1px 4px; border: 1px solid color-mix(in srgb, var(--yellow) 45%, var(--line)); border-radius: var(--radius-pill) color: var(--yellow); font-size: calc(9px * var(--ui-font-scale, 1)); font-style: normal; font-weight: var(--weight-semibold) }
 
 .save-batch-delete {
   min-height: 30px;
@@ -21,7 +21,7 @@
   gap: 5px;
   padding: 0 9px;
   border: 1px solid color-mix(in srgb, var(--coral) 58%, transparent);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--coral) 10%, transparent);
   color: var(--coral);
 }
@@ -30,7 +30,7 @@
   margin-top: 12px;
   padding: 11px;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
 
@@ -84,7 +84,7 @@
   min-height: 32px;
   padding: 0 9px;
   border: 1px solid var(--line-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--surface-raised);
   color: var(--text-soft);
   white-space: nowrap;
@@ -129,9 +129,9 @@
 .save-storage-entries span { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; }
 .save-storage-entries span strong { color: var(--text-soft); font-size: calc(11px * var(--ui-font-scale, 1)); }
 .save-storage-entries span small { color: var(--muted); font-size: calc(10px * var(--ui-font-scale, 1)); }
-.save-storage-entries em { padding: 2px 5px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: calc(10px * var(--ui-font-scale, 1)); font-style: normal; white-space: nowrap; }
+.save-storage-entries em { padding: 2px 5px; border: 1px solid var(--line); border-radius: var(--radius-pill) color: var(--muted); font-size: calc(10px * var(--ui-font-scale, 1)); font-style: normal; white-space: nowrap; }
 .save-storage-entries .protected em { border-color: color-mix(in srgb, var(--yellow) 45%, var(--line)); color: var(--yellow); }
-.save-storage-entries b { color: var(--muted); font-size: calc(11px * var(--ui-font-scale, 1)); font-weight: 600; white-space: nowrap; }
+.save-storage-entries b { color: var(--muted); font-size: calc(11px * var(--ui-font-scale, 1)); font-weight: var(--weight-semibold) white-space: nowrap; }
 
 @media (max-width: 720px) {
   .save-snapshot-row { grid-template-columns: 30px 22px minmax(0, 1fr) 44px 44px; }

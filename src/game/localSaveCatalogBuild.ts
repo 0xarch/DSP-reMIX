@@ -61,6 +61,7 @@ export function buildLocalSaveCatalog(key: string, payload: string, revision: nu
     stateChecksum: inspection.recordedChecksum,
     modeExplicit: stateMode !== null && envelopeMode !== null && stateMode === envelopeMode,
     reason: typeof parsed?.reason === "string" && parsed.reason ? parsed.reason.slice(0, 256) : null,
+    name: typeof parsed?.name === "string" && parsed.name.trim() ? parsed.name.trim().slice(0, 64) : null,
     settings,
   };
 }

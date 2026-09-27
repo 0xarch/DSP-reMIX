@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-import "./theme.css";
+import "./theme.css"; // 文档级规则（设计令牌统一在 styles.css 的 :root）
 import { installAnalytics } from "./game/analytics";
 import { installClientMonitoring } from "./game/monitoring";
 import { getDesktopBridge } from "./desktop";
@@ -13,14 +13,9 @@ import "./styles/local-save-writer.css";
 import "./styles/ui-clarity.css";
 import { AppLocaleProvider, initializeDocumentLocale } from "./i18n/locale";
 import { importWithRecovery, isDynamicImportFailure, reloadLatestBuild, runtimeErrorDiagnosticCode } from "./game/dynamicImportRecovery";
-import { initializeDocumentTheme } from "./game/uiPreferences";
 import { resolveApplicationRoute } from "./game/applicationRoute";
 import { isSpaceStationFeatureEnabled } from "./game/spaceStationFeature";
 
-// Apply the device-only theme before the first React paint. The legacy
-// GameState theme is still read for old saves, but it is no longer the source
-// of the initial document color and therefore cannot cause a dark flash.
-initializeDocumentTheme();
 const startupPlatform = __APP_PLATFORM__ === "android"
   ? "android"
   : getDesktopBridge() ? "desktop" : "web";

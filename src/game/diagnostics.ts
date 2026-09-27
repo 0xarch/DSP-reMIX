@@ -55,7 +55,7 @@ export function collectClientDiagnostics(game?: GameState, performanceReport?: A
   return {
     generatedAt: Date.now(),
     application: {
-      name: "DSP极简网络",
+      name: __APP_DISPLAY_NAME__,
       version: __APP_VERSION__,
       build: __BUILD_ID__,
       url: window.location.href.replace(/[?#].*$/, ""),

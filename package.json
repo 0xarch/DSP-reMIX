@@ -1,5 +1,7 @@
 {
   "name": "dsp-idle-network",
+  "displayName": "DSP reMIX",
+  "displayNameEn": "DSP Idle Network",
   "private": true,
   "version": "1.3.0",
   "releaseChannel": "beta",

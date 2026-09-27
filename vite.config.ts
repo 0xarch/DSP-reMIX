@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { execFileSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 
 function gitText(args: string[]): string | null {
   try {
@@ -11,6 +12,14 @@ function gitText(args: string[]): string | null {
 }
 
 const appVersion = process.env.npm_package_version ?? "0.1.0";
+// 项目显示名的唯一来源：package.json 的 displayName / displayNameEn。
+// 从文件读取（而非 npm_package_* 环境变量），保证 npx vite 直启时同样生效；环境变量可覆盖。
+const packageMetadata = (() => {
+  try { return JSON.parse(execFileSync("node", ["-e", "process.stdout.write(JSON.stringify(require('./package.json')))"], { encoding: "utf8" })); }
+  catch { return {} as { displayName?: string; displayNameEn?: string; version?: string }; }
+})();
+const appDisplayName = process.env.APP_DISPLAY_NAME?.trim() || packageMetadata.displayName || "DSP Idle Network";
+const appDisplayNameEn = process.env.APP_DISPLAY_NAME_EN?.trim() || packageMetadata.displayNameEn || appDisplayName;
 const gitSha = process.env.DSP_GIT_SHA?.trim() || gitText(["rev-parse", "--short=12", "HEAD"]) || "nogit";
 const gitDirty = process.env.DSP_GIT_DIRTY == null
   ? Boolean(gitText(["status", "--porcelain"]))
@@ -63,9 +72,36 @@ function scaleUiFontSizes(): Plugin {
   };
 }
 
+function rewritePwaManifest(source: string | Uint8Array): string {
+  try {
+    const manifest = JSON.parse(typeof source === "string" ? source : new TextDecoder().decode(source));
+    manifest.name = appDisplayName;
+    manifest.short_name = appDisplayName;
+    return `${JSON.stringify(manifest, null, 2)}\n`;
+  } catch { return typeof source === "string" ? source : new TextDecoder().decode(source); }
+}
+
 function emitVersionMetadata(): Plugin {
   return {
     name: "emit-version-metadata",
+    // index.html 是静态入口，标题在这里统一替换为 package.json 的 displayName。
+    transformIndexHtml(html) {
+      return html.replace(/<title>.*<\/title>/, `<title>${appDisplayName}</title>`);
+    },
+    // dev 模式下 public/manifest.webmanifest 由静态中间件直出，用中间件重写。
+    configureServer(server) {
+      server.middlewares.use("/manifest.webmanifest", (_req, res) => {
+        res.setHeader("Content-Type", "application/manifest+json");
+        res.end(rewritePwaManifest(readFileSync("public/manifest.webmanifest", "utf8")));
+      });
+    },
+    // Rolldown 在 generateBundle 阶段尚未拷贝 public/ 资源，用 closeBundle 在写盘后改写。
+    closeBundle() {
+      try {
+        const manifestPath = `${process.cwd()}/dist/manifest.webmanifest`;
+        writeFileSync(manifestPath, rewritePwaManifest(readFileSync(manifestPath, "utf8")));
+      } catch { /* dist manifest may not exist in non-web targets */ }
+    },
     generateBundle() {
       this.emitFile({
         type: "asset",
@@ -84,6 +120,8 @@ export default defineConfig({
   plugins: [scaleUiFontSizes(), react(), emitVersionMetadata()],
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
+    __APP_DISPLAY_NAME__: JSON.stringify(appDisplayName),
+    __APP_DISPLAY_NAME_EN__: JSON.stringify(appDisplayNameEn),
     __BUILD_ID__: JSON.stringify(buildId),
     __APP_PLATFORM__: JSON.stringify(appPlatform),
     __RELEASE_CHANNEL__: JSON.stringify(releaseChannel),

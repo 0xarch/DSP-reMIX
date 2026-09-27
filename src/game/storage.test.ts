@@ -1313,6 +1313,8 @@ describe("game storage", () => {
       autoShortageNavigation: false,
       resourceMode: "infinite",
       difficulty: "standard",
+      veinMultiplier: 1,
+      powerGenerationMultiplier: 1,
     });
     expect(loaded.achievements.unlockedIds).toEqual([]);
   });
@@ -1339,6 +1341,8 @@ describe("game storage", () => {
       autoShortageNavigation: false,
       resourceMode: "infinite",
       difficulty: "standard",
+      veinMultiplier: 1,
+      powerGenerationMultiplier: 1,
     };
     state.achievements.unlockedIds = ["first_manual_mine", "dyson_swarm_online"];
     const serialized = JSON.parse(exportGame(state));

@@ -285,13 +285,8 @@ export function initializeNativeRuntime(): Promise<void> {
     if (!Capacitor.isNativePlatform()) return;
     document.documentElement.dataset.nativeRuntime = "true";
     await StatusBar.setOverlaysWebView({ overlay: false }).catch(() => undefined);
-    const syncStatusBar = () => {
-      const lightTheme = document.documentElement.dataset.theme === "light";
-      void StatusBar.setStyle({ style: lightTheme ? Style.Light : Style.Dark }).catch(() => undefined);
-      void StatusBar.setBackgroundColor({ color: lightTheme ? "#f4f7f6" : "#090d0c" }).catch(() => undefined);
-    };
-    syncStatusBar();
-    new MutationObserver(syncStatusBar).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    await StatusBar.setStyle({ style: Style.Dark }).catch(() => undefined);
+    await StatusBar.setBackgroundColor({ color: "#090d0c" }).catch(() => undefined);
     await App.addListener("appStateChange", ({ isActive }) => dispatchAppState(isActive));
     await App.addListener("backButton", async ({ canGoBack }) => {
       if (canGoBack) {

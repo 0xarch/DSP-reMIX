@@ -1,6 +1,13 @@
-# DSP极简网络
+# DSP ReMIX
 
-[English README](./README.en.md) | 简体中文
+本项目是基于 [DSP极简网络](https://github.com/snowsnow0926/DSPONLINE) 的二次开发软件。
+
+本项目进行了如下修改：
+* 调整了 UI 设计。
+* 默认不启用云服务，包括云账号、云存档和排行榜。
+* 尽量移除了第三方组件需求。
+
+以下是原项目的介绍文本。
 
 《戴森球计划》生产流程的 2D 无限画布挂机工厂游戏。线上稳定版本为 `1.2.6`；使用 `GameState` v47、存档 envelope v2、云 schema v8 和 SQLite layout v3，提供 Web/PWA、Electron 桌面壳、Capacitor Android 应用、云账号、四槽云存档和排行榜。1.2.6 让时间扭曲产率复制只直结白矩阵科研与逐恒星系戴森进度，不再向任何库存虚空造物，并新增三次确认的一键重置星球工厂。香港与上海 Web/API、下载页、Windows stable 和 Android stable 均已完成全量原子发布，1.2.5 为 previous-stable；Android 使用批准的长期证书，Windows 安装包按既有策略明确标记为 `NotSigned`。线上证据见 [1.2.6 正式发布记录](./docs/releases/1.2.6.md)，下载入口见 [上海下载节点](https://download.dsponline.cn/)。
 
@@ -16,7 +23,7 @@
 - 8 个恒星系、22 颗行星、78 个物品、78 条配方、37 类建筑和 67 项科技。
 - 本地存档、备份、快照、三个手动槽位、蓝图和内容包。
 - 用户名账号、可选邮箱、四槽云存档、修订历史、冲突保护和排行榜。
-- 简体中文与 English 可随时切换，语言偏好仅保存在当前设备；深色、亮色和跟随系统主题覆盖桌面及两套手机界面。
+- 简体中文与 English 可随时切换，语言偏好仅保存在当前设备；界面仅提供深色主题，四周界面背景以可调模糊悬浮于全屏主网格之上。
 - 多级递归制造支持高级配方回退、物流运输船和建筑制造中心；生产资料库可跨行星定位并高亮真实上游产线。
 - Electron 桌面打包、Capacitor Android 工程及 Stable/Beta/Nightly 更新通道。
 - SQLite 云服务、备份/恢复、Nginx/systemd 模板和双节点发布工具。

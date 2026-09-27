@@ -22,7 +22,8 @@ export interface DesktopReleaseInfo {
   isDesktop: true;
   /** Older rollback hosts may omit the explicit desktop edition identity. */
   editionId?: "stable-v1" | "windows-performance-development-v1";
-  productName?: "DSP极简网络" | "DSP极简网络 Windows 性能开发版";
+  /** 桌面壳自身打包配置（desktop/ 的 productName）上报的值，前端不约定具体名称。 */
+  productName?: string;
   platform: string;
   channel: "stable" | "beta" | "nightly";
   channelLabel: string;

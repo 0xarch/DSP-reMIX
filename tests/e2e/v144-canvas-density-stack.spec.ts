@@ -3,6 +3,10 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createBlueprint, createInitialState, placeBuilding } from "../../src/game/engine";
 import { serializeEnvelope } from "../../src/game/storage";
 import { selectSettingsCategory } from "./settings-helpers";
+import { readFileSync } from "node:fs";
+/** 应用显示名来自 package.json（名称统一配置的权威来源），断言随之动态读取。 */
+const APP_DISPLAY_NAME = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayName as string;
+
 
 const CANVAS_DETAIL_KEY = "dsp-idle-network.ui.canvas-detail.v1";
 const CANVAS_OVERLAP_KEY = "dsp-idle-network.ui.canvas-overlap.v1";
@@ -382,7 +386,7 @@ test("network focus keeps interaction cards opaque and permits panning from cont
   // Move to a stable target outside React Flow before switching contextual
   // cards. Expanded neighbours overlap by design, so asking Playwright to
   // hover the covered wrapper would not model a real pointer transition.
-  await page.getByText("DSP极简网络", { exact: true }).hover();
+  await page.getByText(APP_DISPLAY_NAME, { exact: true }).hover();
   await expect(contextual).toHaveClass(/factory-flow-node--network-dim/);
   const panTarget = page.locator('.react-flow__node[data-id="anonymous-node-3"]');
   await panTarget.hover();

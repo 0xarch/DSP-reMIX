@@ -47,7 +47,7 @@ test("nightly browsers preserve the core factory and modal keyboard journey", as
   const settings = page.getByRole("dialog", { name: "运营中心" });
   await expect(settings).toBeVisible();
   await settings.getByRole("tab", { name: "设置" }).click();
-  await settings.locator(".settings-category-overview").getByRole("button", { name: "画面与主题" }).click();
+  await settings.locator(".settings-category-overview").getByRole("button", { name: "画面与显示" }).click();
   await settings.getByLabel("字体大小").getByRole("button", { name: "200%" }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue("--ui-font-scale"))).toBe("2");
   await expect.poll(() => settings.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);

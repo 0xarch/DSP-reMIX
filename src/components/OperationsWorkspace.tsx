@@ -35,7 +35,6 @@ import {
   Route,
   MessageSquare,
   MousePointer2,
-  Palette,
   Smartphone,
   ShieldCheck,
   Users,
@@ -47,7 +46,7 @@ import {
 import { PowerValue } from "./PowerValue";
 import { useEffect, useRef, useState } from "react";
 import { getPlanet } from "../game/content";
-import { DIFFICULTY_DEFINITIONS } from "../game/difficulty";
+import { DIFFICULTY_DEFINITIONS, formatResourceMultiplier, normalizeResourceMultiplierSetting } from "../game/difficulty";
 import { getPlanetDisplayName } from "../game/galaxy";
 import { ACHIEVEMENTS, getAchievementProgress } from "../game/progression";
 import type { FactoryAlert } from "../game/alerts";
@@ -330,7 +329,7 @@ function BufferLimitSetting({ label, value, onChange, presets = BUFFER_LIMIT_PRE
     onChange(result.value);
   };
   return <section className="settings-group settings-buffer-limit">
-    <header><HardDrive size={14} /><span>{label}</span><small>{value.toLocaleString("zh-CN")}/种</small></header>
+    <header><HardDrive size={14} /><span>{label}</span></header>
     <div className="settings-segmented settings-buffer-presets" aria-label={`${label}预设`}>
       {presets.map((option) => <button className={!customEditing && value === option ? "active" : ""} type="button" key={option} aria-pressed={!customEditing && value === option} onClick={() => { setCustomEditing(false); setError(null); onChange(option); }}>{labels[option] ?? option.toLocaleString("zh-CN")}</button>)}
       <button className={customEditing || !preset ? "active" : ""} type="button" aria-pressed={customEditing || !preset} onClick={() => { setCustomEditing(true); setDraft(String(value)); setError(null); }}>自定义</button>
@@ -438,33 +437,26 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
       <nav className="settings-category-tabs" aria-label="设置分类">
         {([
           ["all", "全部"],
-          ["visual", "画面与主题"],
+          ["visual", "画面"],
           ["performance", "终局性能"],
-          ["interaction", "交互与控制"],
-          ["storage", "存档与云同步"],
-          ["statistics", "统计与运行记录"],
-          ["other", "教程、版本与其他"],
+          ["interaction", "控制"],
+          ["storage", "存档"],
+          ["statistics", "统计"],
+          ["other", "其他"],
         ] as Array<[SettingsCategory, string]>).map(([id, label]) => <button type="button" className={settingsCategory === id ? "active" : ""} aria-pressed={settingsCategory === id} key={id} onClick={() => setSettingsCategory(id)}>{label}</button>)}
       </nav>
-      <p className="settings-category-hint">分类只影响本机设置页面的显示，不会改变存档内容；返回后会保留上次分类。</p>
       {settingsCategory === "all" ? <section className="settings-category-overview" aria-label="设置分类总览">
         {([
-          ["visual", "画面与主题", "亮色/深色、字体、语言和默认画布显示"],
+          ["visual", "画面", "字体、语言和默认画布显示"],
           ["performance", "终局性能", "刷新频率、极限模式与独立画布回退开关"],
-          ["interaction", "交互与控制", "线路、缺料跳转、寻线和输入行为"],
-          ["storage", "存档与云同步", "自动保存、资源模式和存档保护"],
-          ["statistics", "统计与运行记录", "性能采样、运行记录和诊断报告"],
-          ["other", "教程、版本与其他", "教程入口、版本记录、难度与社区"],
+          ["interaction", "控制", "线路、缺料跳转、寻线和输入行为"],
+          ["storage", "存档", "自动保存、资源模式和存档保护"],
+          ["statistics", "统计", "性能采样、运行记录和诊断报告"],
+          ["other", "其他", "教程入口、版本记录、难度与社区"],
         ] as Array<[Exclude<SettingsCategory, "all">, string, string]>).map(([id, label, detail]) => <button type="button" key={id} onClick={() => setSettingsCategory(id)}>
           <span><strong>{label}</strong><small>{detail}</small></span><ChevronRight size={16} aria-hidden="true" />
         </button>)}
-        <section className="settings-category-quick" aria-label="界面主题">
-          <header><Palette size={14} /><span>界面主题</span><small>{{ dark: "深色", light: "亮色", system: "跟随系统" }[settings.theme]}</small></header>
-          <div className="settings-segmented" aria-label="主题快速设置">
-            {(["dark", "light", "system"] as const).map((theme) => <button className={settings.theme === theme ? "active" : ""} type="button" key={theme} aria-pressed={settings.theme === theme} onClick={() => onChange({ theme })}>{{ dark: "深色", light: "亮色", system: "跟随系统" }[theme]}</button>)}
-          </div>
-        </section>
-      </section> : <button className="settings-category-back" type="button" onClick={() => setSettingsCategory("all")}><ChevronLeft size={15} />返回设置分类</button>}
+      </section> : <></>}
       <section className="settings-group" data-settings-category="visual">
         <header><Zap size={14} /><span>模拟速度</span></header>
         <div className="settings-segmented" aria-label="模拟速度">
@@ -474,7 +466,7 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
         </div>
       </section>
       <section className="settings-group" data-settings-category="visual">
-        <header><Type size={14} /><span>字体大小</span><small>{Math.round(settings.fontScale * 100)}%</small></header>
+        <header><Type size={14} /><span>字体大小</span></header>
         <div className="settings-segmented" aria-label="字体大小">
           {([0.8, 1, 1.25, 1.5, 2] as FontScale[]).map((scale) => (
             <button className={settings.fontScale === scale ? "active" : ""} type="button" key={scale} aria-pressed={settings.fontScale === scale} onClick={() => onChange({ fontScale: scale })}>{Math.round(scale * 100)}%</button>
@@ -482,28 +474,21 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
         </div>
       </section>
       <section className="settings-group" data-settings-category="visual">
-        <header><Palette size={14} /><span>界面主题</span><small>{{ dark: "深色", light: "亮色", system: "跟随系统" }[settings.theme]}</small></header>
-        <div className="settings-segmented" aria-label={settingsCategory === "all" ? "界面主题详情" : "界面主题"}>
-          {(["dark", "light", "system"] as const).map((theme) => <button className={settings.theme === theme ? "active" : ""} type="button" key={theme} onClick={() => onChange({ theme })}>{{ dark: "深色", light: "亮色", system: "跟随系统" }[theme]}</button>)}
-        </div>
-      </section>
-      <section className="settings-group" data-settings-category="visual">
-        <header><Languages size={14} /><span>语言</span><small>{locale === "en" ? "English" : "简体中文"}</small></header>
+        <header><Languages size={14} /><span>语言</span></header>
         <div className="settings-segmented" aria-label="语言">
           <button className={locale === "zh-CN" ? "active" : ""} type="button" aria-pressed={locale === "zh-CN"} onClick={() => setLocale("zh-CN")}>简体中文</button>
           <button className={locale === "en" ? "active" : ""} type="button" aria-pressed={locale === "en"} onClick={() => setLocale("en")}>English</button>
         </div>
-        <p className="settings-help">语言仅保存在当前设备，不会写入游戏存档或云存档。</p>
       </section>
       <section className="settings-group" data-settings-category="visual">
-        <header><Settings2 size={14} /><span>科技树布局</span><small>{settings.technologyLayout === "compact" ? "精简" : "标准"}</small></header>
+        <header><Settings2 size={14} /><span>科技树布局</span></header>
         <div className="settings-segmented" aria-label="科技树布局">
           <button className={settings.technologyLayout === "standard" ? "active" : ""} type="button" onClick={() => onChange({ technologyLayout: "standard" })}>标准模式</button>
           <button className={settings.technologyLayout === "compact" ? "active" : ""} type="button" onClick={() => onChange({ technologyLayout: "compact" })}>精简模式</button>
         </div>
       </section>
       <section className="settings-group settings-belt-defaults" data-settings-category="visual interaction">
-        <header><Settings2 size={14} /><span>新建传送带默认参数</span><small>仅影响新线路</small></header>
+        <header><Settings2 size={14} /><span>新建传送带默认参数</span></header>
         <DefaultBeltLanesSetting value={defaultBeltLanes} onChange={onDefaultBeltLanesChange} />
         <label><span>货物堆叠</span><div className="settings-segmented" aria-label="新建传送带默认货物堆叠">{([1, 2, 4] as CargoStackSize[]).map((stackSize) => <button className={settings.defaultBeltStackSize === stackSize ? "active" : ""} type="button" disabled={!canSetBeltStackSize(game, stackSize)} key={stackSize} onClick={() => onChange({ defaultBeltStackSize: stackSize })}>×{stackSize}</button>)}</div></label>
         <label><span>线路形状</span><div className="settings-segmented" aria-label="新建传送带默认线路形状">{(["auto", "bezier", "upper", "lower"] as DefaultBeltRouteMode[]).map((mode) => <button className={settings.defaultBeltRouteMode === mode ? "active" : ""} type="button" key={mode} onClick={() => onChange({ defaultBeltRouteMode: mode })}>{{ auto: "自动避让", bezier: "曲线", upper: "上绕", lower: "下绕" }[mode]}</button>)}</div></label>
@@ -525,7 +510,6 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
         <div className="settings-segmented" role="radiogroup" aria-label="建筑接口真实命中范围">
           {(["auto", "standard", "large", "huge"] as const).map((size) => <button type="button" key={size} className={connectionHitArea === size ? "active" : ""} aria-pressed={connectionHitArea === size} onClick={() => onConnectionHitAreaChange(size)}>{{ auto: "自动适配", standard: "标准", large: "放大", huge: "超大" }[size]}</button>)}
         </div>
-        <p className="settings-help">透明命中区域不会遮挡建筑文字。自动档随缩放扩大；触控设备始终保证至少 56px 命中直径。</p>
       </section>
       <section className="settings-group settings-toggle-list" data-settings-category="interaction">
         <ToggleSetting
@@ -592,7 +576,7 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
         <p className="settings-help">只调整生产画面与状态发布节奏，不改变模拟时间、产量、物流、科研或戴森工程。固定档位不会被自动调节覆盖。</p>
       </section>
       <section className="settings-group settings-canvas-detail" data-settings-category="performance visual">
-        <header><Gauge size={14} /><span>{locale === "en" ? "Canvas detail" : "画布细节"}</span><small>{canvasDetailStage === "full" ? locale === "en" ? "Full" : "完整" : canvasDetailStage === "medium" ? locale === "en" ? "Medium" : "中等" : locale === "en" ? "Compact" : "紧凑"}</small></header>
+        <header><Gauge size={14} /><span>{locale === "en" ? "Canvas detail" : "画布细节"}</span></header>
         <div className="canvas-detail-control">
           <strong>{locale === "en" ? "Base cards" : "基础卡片"}</strong>
           <div className="settings-segmented" role="radiogroup" aria-label={locale === "en" ? "Canvas base cards" : "画布基础卡片"}>
@@ -605,9 +589,6 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
               key={preference}
             >{preference === "auto" ? locale === "en" ? "Auto" : "自动" : preference === "full" ? locale === "en" ? "Full" : "完整" : preference === "medium" ? locale === "en" ? "Medium" : "中等" : locale === "en" ? "One line" : "一行"}</button>)}
           </div>
-          <small>{locale === "en"
-            ? "Auto is recommended. Fixed levels stay exact except for the uniform Full + All cards emergency guard above 480 visible nodes."
-            : `推荐自动档；固定档通常保持原样，仅“完整 + 全部卡片”超过 ${CANVAS_FULL_ALL_MEDIUM_SAFETY_VISIBLE} 个视口节点时启用统一安全级别。`}</small>
         </div>
         <div className="canvas-detail-control">
           <strong>{locale === "en" ? "Overlapping buildings" : "重叠建筑显示"}</strong>
@@ -621,11 +602,6 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
               key={preference}
             >{preference === "marker" ? locale === "en" ? "Count marker" : "数量标记" : preference === "representative" ? locale === "en" ? "Lead card" : "代表卡片" : locale === "en" ? "All cards" : "全部卡片"}</button>)}
           </div>
-          <small>{canvasOverlapPreference === "marker"
-            ? locale === "en" ? "Recommended: one always-visible “Stack N” marker; members remain independent and selectable." : "推荐：每组始终显示一个“叠放 N”标记；成员仍是独立实体，可点击展开代表建筑。"
-            : canvasOverlapPreference === "representative"
-              ? locale === "en" ? "Shows one normal card with an explicit stack count." : "显示一张普通代表卡，并明确标注组内独立实体数量。"
-              : locale === "en" ? "Keeps every card in the render tree; identical coordinates can still cover one another." : "所有卡片都保留在渲染树中；完全相同坐标仍可能互相覆盖。"}</small>
         </div>
         <div className="canvas-detail-control">
           <strong>{locale === "en" ? "Interaction expansion" : "交互展开"}</strong>
@@ -644,7 +620,7 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
         <dl className="canvas-detail-diagnostics" aria-label={locale === "en" ? "Canvas detail diagnostics" : "画布细节诊断"}>
           <div><dt>{locale === "en" ? "Visible nodes" : "视口可见"}</dt><dd>{canvasVisibleNodeCount.toLocaleString(locale)}</dd></div>
           <div><dt>{locale === "en" ? "Current stage" : "当前阶段"}</dt><dd>{canvasDetailStage}</dd></div>
-          <div><dt>{locale === "en" ? "Planet overlap" : "活动行星重叠"}</dt><dd>{locale === "en" ? `${canvasStackGroupCount} groups / ${canvasStackHiddenCount} hidden` : `${canvasStackGroupCount} 组 / ${canvasStackHiddenCount} 隐藏`}</dd></div>
+          <div><dt>{locale === "en" ? "Planet overlap" : "活动行星重叠"}</dt><dd>{canvasStackGroupCount} / {canvasStackHiddenCount}</dd></div>
         </dl>
         <p className="settings-help">{locale === "en"
           ? "Auto uses viewport-visible logical nodes with hysteresis. These three preferences are device-only and never enter local saves, cloud saves or deterministic simulation."
@@ -814,7 +790,7 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
         </div>
       </section>
       <section className="settings-group settings-difficulty-group" data-settings-category="other">
-        <header><Gauge size={14} /><span>工业难度</span><small>{DIFFICULTY_DEFINITIONS.find((definition) => definition.id === settings.difficulty)?.name ?? "标准"}</small></header>
+        <header><Gauge size={14} /><span>工业难度</span></header>
         <div className="settings-segmented settings-difficulty-options" aria-label="工业难度">
           {DIFFICULTY_DEFINITIONS.map((definition) => (
             <button className={settings.difficulty === definition.id ? "active" : ""} type="button" key={definition.id} aria-pressed={settings.difficulty === definition.id} onClick={() => onChange({ difficulty: definition.id as DifficultyMode })} title={definition.summary}>
@@ -823,6 +799,40 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
           ))}
         </div>
         <p className="settings-help">{DIFFICULTY_DEFINITIONS.find((definition) => definition.id === settings.difficulty)?.summary ?? "按当前原型的默认节奏运行。"}</p>
+      </section>
+      <section className="settings-group settings-precision-difficulty" data-settings-category="other">
+        <header><Gauge size={14} /><span>精准难度倍率</span></header>
+        <div className="settings-precision-row">
+          <label><span>{locale === "en" ? "Vein multiplier (0.01–100)" : "矿物倍率（0.01~100）"}</span>
+            <span className="settings-precision-inline">
+              <input type="number" min={0.01} max={100} step={0.05} value={settings.veinMultiplier === "Infinity" ? "" : settings.veinMultiplier}
+                disabled={settings.veinMultiplier === "Infinity"} placeholder="∞"
+                aria-label={locale === "en" ? "Vein multiplier" : "矿物倍率"}
+                onChange={(event) => {
+                  const parsed = normalizeResourceMultiplierSetting(Number(event.target.value));
+                  if (parsed !== null) onChange({ veinMultiplier: parsed });
+                }} />
+              <button type="button" className={settings.veinMultiplier === "Infinity" ? "active" : ""} aria-pressed={settings.veinMultiplier === "Infinity"}
+                onClick={() => onChange({ veinMultiplier: settings.veinMultiplier === "Infinity" ? 1 : "Infinity" })}>∞</button>
+            </span>
+          </label>
+          <label><span>{locale === "en" ? "Power generation multiplier (0.01–100)" : "发电倍率（0.01~100）"}</span>
+            <span className="settings-precision-inline">
+              <input type="number" min={0.01} max={100} step={0.05} value={settings.powerGenerationMultiplier === "Infinity" ? "" : settings.powerGenerationMultiplier}
+                disabled={settings.powerGenerationMultiplier === "Infinity"} placeholder="∞"
+                aria-label={locale === "en" ? "Power generation multiplier" : "发电倍率"}
+                onChange={(event) => {
+                  const parsed = normalizeResourceMultiplierSetting(Number(event.target.value));
+                  if (parsed !== null) onChange({ powerGenerationMultiplier: parsed });
+                }} />
+              <button type="button" className={settings.powerGenerationMultiplier === "Infinity" ? "active" : ""} aria-pressed={settings.powerGenerationMultiplier === "Infinity"}
+                onClick={() => onChange({ powerGenerationMultiplier: settings.powerGenerationMultiplier === "Infinity" ? 1 : "Infinity" })}>∞</button>
+            </span>
+          </label>
+        </div>
+        <p className="settings-help">{locale === "en"
+          ? "Vein multiplier applies when a vein is established; power generation multiplier applies to all power facility output immediately."
+          : "矿物倍率在建立矿脉时应用；发电倍率立即作用于所有发电设施。"}</p>
       </section>
       <section className="settings-group settings-diagnostics" data-settings-category="statistics">
         <header><ShieldCheck size={14} /><span>模拟诊断</span><small>确定性、2/8/24/72 小时挂机与数值平衡</small></header>
@@ -850,10 +860,6 @@ function SettingsPanel({ game, report, productionRefreshPreference, productionRe
       <section className="settings-group settings-release-notes" data-settings-category="other">
         <header><History size={14} /><span>版本更新记录</span><small>{currentReleaseNotes.date}</small></header>
         <button type="button" onClick={onOpenReleaseNotes} aria-label="查看版本更新记录"><History size={15} /><span><strong>{currentReleaseNotes.title}</strong><small>{currentReleaseNotes.items.length} 项体验更新</small></span></button>
-      </section>
-      <section className="settings-group settings-community" data-settings-category="other">
-        <header><MessageSquare size={14} /><span>QQ 交流群</span><small>意见、建议与问题反馈</small></header>
-        <div><span>群号</span><strong>1076757280</strong></div>
       </section>
     </div>
   );

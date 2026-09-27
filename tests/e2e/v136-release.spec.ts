@@ -151,7 +151,7 @@ test("belt-lane controls fit desktop, classic/new mobile, portrait/landscape, an
   for (const [mode, viewport] of configurations) {
     const operations = await openSettings(page, mode, viewport);
     for (const scale of [80, 100, 125, 150, 200] as const) {
-      await selectSettingsCategory(operations, "画面与主题", "visual");
+      await selectSettingsCategory(operations, "画面与显示", "visual");
       await operations.getByLabel("字体大小").getByRole("button", { name: `${scale}%` }).click();
       await selectSettingsCategory(operations, "交互与控制", "interaction");
       const setting = operations.locator(".settings-belt-lanes");

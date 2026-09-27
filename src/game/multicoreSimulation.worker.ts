@@ -3,6 +3,7 @@
 import { createSimulationPlanetPhaseLookup, runPlanetSimulationPhase } from "./engine";
 import type { PlanetPhaseWorkerRequest, PlanetPhaseWorkerResponse } from "./multicoreSimulation";
 import { applyContentPackRuntimeSnapshot } from "./contentPacks";
+import { syncDynamicGalaxyCatalog } from "./content";
 
 let activeRegistryFingerprint = "core";
 
@@ -14,6 +15,7 @@ self.onmessage = (event: MessageEvent<PlanetPhaseWorkerRequest>) => {
         throw new Error("星球分区 Worker 缺少匹配的内容包注册表");
       }
       applyContentPackRuntimeSnapshot(request.registry);
+      syncDynamicGalaxyCatalog(request.state.galaxy);
       activeRegistryFingerprint = request.registryFingerprint;
     }
     const reception = {

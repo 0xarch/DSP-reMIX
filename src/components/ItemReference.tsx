@@ -2,6 +2,7 @@ import { BookOpen, Crosshair, Factory, FlaskConical, MapPin } from "lucide-react
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { getCompatibleRecipeBuildings, getItem, getPlanet } from "../game/content";
+import { getItemIconUrl } from "../content/dsp/itemIcons";
 import { getConsumingRecipes, getProducingRecipes, getResearchUses, getResourceSources } from "../game/recipeGraph";
 import type { ItemId } from "../game/types";
 
@@ -44,6 +45,12 @@ export function getAccessibleItemGlyphTextColor(backgroundColor: string): "#0000
 
 export function ItemGlyph({ itemId, className = "" }: { itemId: ItemId; className?: string }) {
   const item = getItem(itemId);
+  const iconUrl = getItemIconUrl(itemId);
+  if (iconUrl) {
+    return <i className={`item-glyph item-glyph--image item-glyph--${item.kind}${className ? ` ${className}` : ""}`} style={{ backgroundColor: item.color }} title={item.name}>
+      <img src={iconUrl} alt={item.name} draggable={false} loading="lazy" />
+    </i>;
+  }
   return <i className={`item-glyph item-glyph--${item.kind}${className ? ` ${className}` : ""}`} style={{ backgroundColor: item.color, color: getAccessibleItemGlyphTextColor(item.color) }}>{item.symbol}</i>;
 }
 

@@ -1,4 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+/** 应用显示名来自 package.json（名称统一配置的权威来源），断言随之动态读取。 */
+const APP_DISPLAY_NAME = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayName as string;
+const APP_DISPLAY_NAME_EN = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayNameEn as string;
+
 
 const CACHE_NAMESPACE = "dsp-idle-pwa-v2::";
 const SHELL_PREFIX = `${CACHE_NAMESPACE}shell::root::`;
@@ -141,7 +146,7 @@ test("production PWA isolates caches, upgrades atomically and reopens offline", 
     }));
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page).toHaveTitle("DSP极简网络");
+    await expect(page).toHaveTitle(APP_DISPLAY_NAME);
     await page.waitForTimeout(3_000);
     const offlineDiagnostics = await page.evaluate(async (shellPrefix) => {
       const keys = await caches.keys();

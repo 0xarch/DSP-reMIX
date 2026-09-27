@@ -280,22 +280,10 @@ test("statistics uses one explicit trend command and has no serious axe violatio
   expect(blocking.map((violation) => ({ id: violation.id, targets: violation.nodes.map((node) => node.target) }))).toEqual([]);
 });
 
-test("semantic text colors meet 4.5 to 1 in light and dark themes", async ({ page }) => {
+test("semantic text colors meet 4.5 to 1 in the dark theme", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openFactory(page);
-  for (const theme of ["dark", "light"] as const) {
-    await page.evaluate((nextTheme) => {
-      localStorage.setItem("dsp-idle-network.ui.theme.v1", nextTheme);
-      window.dispatchEvent(new StorageEvent("storage", { key: "dsp-idle-network.ui.theme.v1", newValue: nextTheme }));
-    }, theme);
-    if (await page.locator("html").getAttribute("data-theme") !== theme) {
-      await page.getByLabel("打开设置").click();
-      const settings = page.getByRole("dialog", { name: "运营中心" });
-      await settings.locator(".settings-category-overview").getByRole("button", { name: /画面与主题/ }).click();
-      await settings.getByLabel("界面主题").getByRole("button", { name: theme === "light" ? "亮色" : "深色" }).click();
-      await page.keyboard.press("Escape");
-    }
-    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  {
     const vein = page.locator(".vein-reserve").first();
     await expect(vein).toBeVisible();
     const samples = [vein];
@@ -320,25 +308,20 @@ test("semantic text colors meet 4.5 to 1 in light and dark themes", async ({ pag
         return { foreground, background };
       });
       const ratio = contrastRatio(parseColor(colors.foreground), parseColor(colors.background));
-      expect(ratio, `${theme}: ${await sample.evaluate((element) => element.className)} ${colors.foreground} / ${colors.background}`).toBeGreaterThanOrEqual(4.5);
+      expect(ratio, `dark: ${await sample.evaluate((element) => element.className)} ${colors.foreground} / ${colors.background}`).toBeGreaterThanOrEqual(4.5);
     }
     await page.keyboard.press("Escape");
   }
 });
 
-test("axe passes representative dark, light, 200 percent and mobile workspaces", async ({ page }) => {
+test("axe passes representative dark, 200 percent and mobile workspaces", async ({ page }) => {
   test.setTimeout(240_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openFactory(page);
-  for (const theme of ["dark", "light"] as const) {
-    await page.evaluate((nextTheme) => {
-      document.documentElement.dataset.theme = nextTheme;
-      document.documentElement.style.colorScheme = nextTheme;
-    }, theme);
-    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+  {
     await runCommand(page, "生产资料库", /打开生产资料库/);
     await expect(page.locator(".recipe-workspace")).toBeVisible();
-    await expectNoBlockingAxe(page, ".recipe-workspace", `${theme} 资料库 Axe`);
+    await expectNoBlockingAxe(page, ".recipe-workspace", "暗色资料库 Axe");
     await page.keyboard.press("Escape");
     await expect(page.locator(".recipe-workspace")).toBeHidden();
   }

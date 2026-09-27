@@ -99,6 +99,12 @@
         "missing": { "defaultVersions": [46, 47] },
         "projection": { "omitDefaultVersions": [46, 47] }
       },
+      "resourceInfinite": {
+        "default": { "kind": "literal", "value": false },
+        "validation": { "type": "boolean" },
+        "missing": { "defaultVersions": [46, 47] },
+        "projection": { "omitDefaultVersions": [46, 47] }
+      },
       "stationWarperAutoRefill": {
         "default": { "kind": "literal", "value": false },
         "validation": { "type": "boolean" },

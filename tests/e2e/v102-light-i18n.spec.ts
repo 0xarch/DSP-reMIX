@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { selectSettingsCategory } from "./settings-helpers";
+import { readFileSync } from "node:fs";
+/** 应用显示名来自 package.json（名称统一配置的权威来源），断言随之动态读取。 */
+const APP_DISPLAY_NAME = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayName as string;
+const APP_DISPLAY_NAME_EN = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayNameEn as string;
+
 
 const RELEASE_NOTE_ID = "2026-09-22-v1.3.0";
 
@@ -22,7 +27,7 @@ async function seedEnglishFactory(page: Page, mobileUi: "legacy" | "next" = "nex
       planetTrayItemLimits: { home: 1_000_000 },
       totalProduced: {},
       research: { selectedTechId: null, pausedTechId: null, queuedTechIds: [], progressByTech: {}, completedTechIds: ["electromagnetism"] },
-      settings: { theme: "light", fontScale: 1, simulationSpeed: 1, autosaveIntervalSeconds: 30 },
+      settings: { theme: "dark", fontScale: 1, simulationSpeed: 1, autosaveIntervalSeconds: 30 },
       paused: true,
     };
     window.sessionStorage.setItem("dsp-idle-network.test-bypass-menu", "1");
@@ -73,7 +78,7 @@ test("English query and start-menu setting persist as a device preference", asyn
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?menu=1&lang=en");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.getByText("DSP Idle Network", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME_EN, { exact: true }).first()).toBeVisible();
   const language = page.locator(".start-menu-language-prominent");
   await expect(language).toBeVisible();
   await expect(language.getByRole("button", { name: "English", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -83,13 +88,12 @@ test("English query and start-menu setting persist as a device preference", asyn
   expect(await page.evaluate(() => window.localStorage.getItem("dsp-idle-network.save.v1"))).toBeNull();
 });
 
-test("English light factory and lazy workspaces stay readable on desktop", async ({ page }) => {
+test("English factory and lazy workspaces stay readable on desktop", async ({ page }) => {
   await seedEnglishFactory(page, "legacy");
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/?factory=1&lang=en&mobileUi=legacy");
   await closeOnboarding(page);
   await expect(page.locator(".factory-canvas")).toBeVisible();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator('.react-flow__node[data-id="smelter"]')).toContainText("Smelter");
   await page.getByLabel("Open Production Library").click();
   const codex = page.getByRole("dialog", { name: "Production Library" });
@@ -97,13 +101,13 @@ test("English light factory and lazy workspaces stay readable on desktop", async
   await expect(codex.getByText("Iron Ore", { exact: true }).first()).toBeVisible();
   await page.waitForTimeout(350);
   const codexColor = await codex.evaluate((element) => getComputedStyle(element).backgroundColor);
-  expect(luminance(codexColor)).toBeGreaterThan(205);
+  expect(luminance(codexColor)).toBeLessThan(90);
   expect(await visibleHanStrings(codex)).toEqual([]);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-  await page.screenshot({ path: "artifacts/qa/v102-english-light-desktop.png", fullPage: true });
+  await page.screenshot({ path: "artifacts/qa/v102-english-dark-desktop.png", fullPage: true });
 });
 
-test("English light release notes are localized and persist dismissal", async ({ page }) => {
+test("English release notes are localized and persist dismissal", async ({ page }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("dsp-idle-network.locale.v1", "en");
     window.localStorage.removeItem("dsp-idle-network.release-notes.seen.v1");
@@ -125,7 +129,7 @@ test("English light release notes are localized and persist dismissal", async ({
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem("dsp-idle-network.release-notes.seen.v1"))).toBe("2026-09-22-v1.3.0");
 });
 
-test("English light primary workspaces use opaque light surfaces", async ({ page }) => {
+test("English primary workspaces use opaque surfaces", async ({ page }) => {
   test.setTimeout(60_000);
   await seedEnglishFactory(page, "legacy");
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -145,7 +149,7 @@ test("English light primary workspaces use opaque light surfaces", async ({ page
     const workspace = page.locator(selector);
     await expect(workspace).toBeVisible();
     await page.waitForTimeout(350);
-    expect(luminance(await workspace.evaluate((element) => getComputedStyle(element).backgroundColor))).toBeGreaterThan(205);
+    expect(luminance(await workspace.evaluate((element) => getComputedStyle(element).backgroundColor))).toBeLessThan(90);
     expect(await visibleHanStrings(workspace)).toEqual([]);
     if (selector === ".star-map-workspace") {
       await workspace.getByRole("tab", { name: "Quantum Inventory" }).click();
@@ -157,7 +161,7 @@ test("English light primary workspaces use opaque light surfaces", async ({ page
   }
 });
 
-test("English light next-mobile shell keeps navigation and settings reachable", async ({ page }) => {
+test("English next-mobile shell keeps navigation and settings reachable", async ({ page }) => {
   await seedEnglishFactory(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/?factory=1&lang=en&mobileUi=next");
@@ -172,12 +176,12 @@ test("English light next-mobile shell keeps navigation and settings reachable", 
   await nav.getByRole("button", { name: "More", exact: true }).click();
   const hub = page.getByRole("dialog", { name: "More workspaces" });
   await expect(hub).toBeVisible();
-  expect(luminance(await hub.evaluate((element) => getComputedStyle(element).backgroundColor))).toBeGreaterThan(205);
+  expect(luminance(await hub.evaluate((element) => getComputedStyle(element).backgroundColor))).toBeLessThan(90);
   await hub.getByRole("button", { name: /Game Settings/ }).click();
   const operations = page.getByRole("dialog", { name: "Operations Center" });
-  await selectSettingsCategory(operations, "Appearance & Theme", "visual");
+  await selectSettingsCategory(operations, "Appearance & Display", "visual");
   await expect(operations.getByLabel("Language")).toBeVisible();
   expect(await visibleHanStrings(operations)).toEqual([]);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
-  await page.screenshot({ path: "artifacts/qa/v102-english-light-mobile-390x844.png", fullPage: true });
+  await page.screenshot({ path: "artifacts/qa/v102-english-dark-mobile-390x844.png", fullPage: true });
 });

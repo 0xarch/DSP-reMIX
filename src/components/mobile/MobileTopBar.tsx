@@ -33,7 +33,7 @@ export function MobileTopBar({ game, route, alertCount, onBack, onOpenPlanet, on
     return (
       <header className="mobile-next-topbar mobile-next-topbar--workspace">
         <button type="button" onClick={onBack} aria-label={backLabel}><ChevronLeft size={22} /><span>返回</span></button>
-        <div><small>DSP极简网络</small><strong>{title}</strong></div>
+        <div><small>{__APP_DISPLAY_NAME__}</small><strong>{title}</strong></div>
         <span className="mobile-next-topbar__spacer" aria-hidden="true" />
       </header>
     );

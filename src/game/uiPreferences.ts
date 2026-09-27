@@ -1,4 +1,4 @@
-import type { FontScale, ThemeMode } from "./types";
+import type { FontScale } from "./types";
 import type {
   CanvasDetailPreference,
   CanvasInteractionDetailPreference,
@@ -10,7 +10,6 @@ import {
 } from "./memoryBudget";
 
 /** Device-only preferences. These values never belong in GameState or cloud payloads. */
-export const UI_THEME_PREFERENCE_KEY = "dsp-idle-network.ui.theme.v1";
 export const UI_FONT_SCALE_PREFERENCE_KEY = "dsp-idle-network.ui.font-scale.v1";
 export const SHOW_RUN_LOG_PREFERENCE_KEY = "dsp-idle-network.ui.show-run-log.v1";
 export const SHOW_ITEM_HOVER_PREFERENCE_KEY = "dsp-idle-network.ui.show-item-hover.v1";
@@ -42,27 +41,6 @@ export type ConnectionHitArea = "standard" | "large" | "huge" | "auto";
 function localStorageOrNull(): Storage | null {
   if (typeof window === "undefined") return null;
   try { return window.localStorage; } catch { return null; }
-}
-
-export function isThemeMode(value: unknown): value is ThemeMode {
-  return value === "dark" || value === "light" || value === "system";
-}
-
-export function readThemePreference(): ThemeMode | null {
-  const storage = localStorageOrNull();
-  if (!storage) return null;
-  try {
-    const value = storage.getItem(UI_THEME_PREFERENCE_KEY);
-    return isThemeMode(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeThemePreference(mode: ThemeMode): void {
-  const storage = localStorageOrNull();
-  if (!storage) return;
-  try { storage.setItem(UI_THEME_PREFERENCE_KEY, mode); } catch { /* optional preference */ }
 }
 
 export function readFontScalePreference(): FontScale | null {
@@ -402,17 +380,4 @@ export function writeSpeedrunPanelCollapsedPreference(collapsed: boolean): void 
   const storage = localStorageOrNull();
   if (!storage) return;
   try { storage.setItem(SPEEDRUN_PANEL_COLLAPSED_PREFERENCE_KEY, String(collapsed)); } catch { /* optional preference */ }
-}
-
-/** Apply a saved theme before React mounts, preventing a dark flash on light-mode launches. */
-export function initializeDocumentTheme(): ThemeMode {
-  const mode = readThemePreference() ?? "dark";
-  const resolved = mode === "system"
-    ? (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark")
-    : mode;
-  if (typeof document !== "undefined") {
-    document.documentElement.dataset.theme = resolved;
-    document.documentElement.style.colorScheme = resolved;
-  }
-  return mode;
 }

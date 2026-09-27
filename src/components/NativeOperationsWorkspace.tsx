@@ -60,7 +60,6 @@ export interface NativeOperationsWorkspaceProps {
     expectedRegistryFingerprint: string;
     intent: DesktopNativeOperationsSettingIntent;
   }) => Promise<unknown>) | null;
-  theme: "dark" | "light" | "system";
   fontScale: 0.8 | 1 | 1.25 | 1.5 | 2;
   factoryAlertsEnabled: boolean;
   canvasDetailPreference: CanvasDetailPreference;
@@ -68,7 +67,6 @@ export interface NativeOperationsWorkspaceProps {
   connectionHitArea: ConnectionHitArea;
   defaultBeltLanes: number;
   locale: AppLocale;
-  onThemeChange: (value: "dark" | "light" | "system") => void;
   onFontScaleChange: (value: 0.8 | 1 | 1.25 | 1.5 | 2) => void;
   onFactoryAlertsEnabledChange: (value: boolean) => void;
   onCanvasDetailPreferenceChange: (value: CanvasDetailPreference) => void;
@@ -459,7 +457,6 @@ export function NativeOperationsWorkspace(props: NativeOperationsWorkspaceProps)
         }} /></label>)}
         <hr />
         <h3>设备 / renderer 偏好</h3>
-        <label>主题<select value={props.theme} onChange={(event) => props.onThemeChange(event.target.value as "dark" | "light" | "system")}><option value="system">跟随系统</option><option value="dark">深色</option><option value="light">浅色</option></select></label>
         <label>字号<select value={props.fontScale} onChange={(event) => props.onFontScaleChange(Number(event.target.value) as 0.8 | 1 | 1.25 | 1.5 | 2)}>{[0.8, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{Math.round(value * 100)}%</option>)}</select></label>
         <label>语言<select value={props.locale} onChange={(event) => props.onLocaleChange(event.target.value as AppLocale)}><option value="zh-CN">简体中文</option><option value="en">English</option></select></label>
         <label><input type="checkbox" checked={props.factoryAlertsEnabled} onChange={(event) => props.onFactoryAlertsEnabledChange(event.target.checked)} /> 显示工厂警报（设备偏好）</label>

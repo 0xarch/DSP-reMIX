@@ -101,6 +101,8 @@ export interface FactoryNodeData extends Record<string, unknown> {
   resourceReserve: ResourceReserveSnapshot | null;
   powerDemandMultiplier: number;
   solarGenerationMultiplier: number;
+  /** 精准难度：发电倍率（有限值，Infinity 已折算为 1e15）。 */
+  powerGenerationMultiplier?: number;
   windGenerationMultiplier: number;
   geothermalGenerationMultiplier: number;
   activeLogisticsEntityIds: string[];
@@ -1149,7 +1151,7 @@ function PowerFullNode({ data, selected }: NodeProps<FactoryFlowNode>) {
   const adding = !data.readOnly && placement === entity.buildingId;
   const fuelId = entity.fuelItemId;
   const environmentMultiplier = solar ? data.solarGenerationMultiplier : geothermal ? data.geothermalGenerationMultiplier : data.windGenerationMultiplier;
-  const ratedPower = (building.powerGenerationKw ?? 0) * entity.machineCount * environmentMultiplier;
+  const ratedPower = (building.powerGenerationKw ?? 0) * entity.machineCount * environmentMultiplier * (data.powerGenerationMultiplier ?? 1);
   const energyCapacity = (building.energyCapacityMj ?? 0) * entity.machineCount;
   const energyPercent = energyCapacity > 0 ? (entity.storedEnergyMj ?? 0) / energyCapacity : 0;
   const acceptsItems = fuelGenerator || exchanger;

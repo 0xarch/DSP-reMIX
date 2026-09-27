@@ -33,6 +33,7 @@ import {
   createGalaxyState,
   createPlayerGalaxySeed,
   createVeinReserve,
+  isStarSystemIncluded,
   getPlanetIndustrialProfile,
   getPlanetOrbitalYields,
   getPlanetSolarPowerMultiplier,
@@ -100,9 +101,10 @@ import type {
   StationSlot,
   StationSlotTemplate,
   TechId,
+  GalaxyGenerationOptions,
 } from "./types";
 import { syncCampaignProgress } from "./campaign";
-import { getDifficultyDefinition } from "./difficulty";
+import { getDifficultyDefinition, resolveFiniteResourceMultiplier, resolveResourceMultiplier, type ResourceMultiplierSetting } from "./difficulty";
 import {
   GALACTIC_EXPORT_DEFINITIONS,
   INFINITE_RESEARCH_BY_ID,
@@ -443,18 +445,18 @@ function copyState(state: GameState): GameState {
         })),
       },
     ])) as GameState["dysonPlans"],
-    systemSpaceStations: Object.fromEntries(Object.entries(state.systemSpaceStations).map(([systemId, station]) => [
+    systemSpaceStations: Object.fromEntries(Object.entries(state.systemSpaceStations).filter(([, station]) => Boolean(station)).map(([systemId, station]) => [
       systemId,
       {
         ...station,
-        delivered: { ...station.delivered },
-        constructionBuffer: { ...station.constructionBuffer },
-        inventory: { ...station.inventory },
-        itemPolicies: Object.fromEntries(Object.entries(station.itemPolicies).map(([itemId, policy]) => [itemId, policy ? { ...policy } : policy])),
-        modules: { ...station.modules },
-        routingCursors: { ...station.routingCursors },
-        viewport: { ...station.viewport },
-        decorations: station.decorations.map((decoration) => ({ ...decoration, position: { ...decoration.position } })),
+        delivered: { ...station!.delivered },
+        constructionBuffer: { ...station!.constructionBuffer },
+        inventory: { ...station!.inventory },
+        itemPolicies: Object.fromEntries(Object.entries(station!.itemPolicies).map(([itemId, policy]) => [itemId, policy ? { ...policy } : policy])),
+        modules: { ...station!.modules },
+        routingCursors: { ...station!.routingCursors },
+        viewport: { ...station!.viewport },
+        decorations: station!.decorations.map((decoration) => ({ ...decoration, position: { ...decoration.position } })),
       },
     ])) as GameState["systemSpaceStations"],
     galacticHubNetwork: {
@@ -624,8 +626,22 @@ function makeVein(id: string, planetId: PlanetId, resourceId: ItemId, x: number,
   };
 }
 
-export function createInitialState(seed = DEFAULT_GALAXY_SEED, preserveBaseline = seed === DEFAULT_GALAXY_SEED): GameState {
-  const galaxy = createGalaxyState(seed, preserveBaseline);
+export interface InitialStateGenerationOptions {
+  /** 矿物倍率：矿脉建立时初始储量 × 倍率，"+Infinity" 哨兵表示无限矿石。 */
+  veinMultiplier?: ResourceMultiplierSetting;
+  /** 发电倍率：发电设施输出功率 × 倍率。 */
+  powerGenerationMultiplier?: ResourceMultiplierSetting;
+  /** 星系生成选项：种子之上的星系个数与距离系数。 */
+  galaxyOptions?: Partial<GalaxyGenerationOptions>;
+}
+
+export function createInitialState(
+  seed = DEFAULT_GALAXY_SEED,
+  preserveBaseline = seed === DEFAULT_GALAXY_SEED,
+  generationOptions: InitialStateGenerationOptions = {},
+): GameState {
+  const galaxy = createGalaxyState(seed, preserveBaseline, generationOptions.galaxyOptions);
+  const veinMultiplier = resolveResourceMultiplier(generationOptions.veinMultiplier ?? 1);
   const planetMetrics = Object.fromEntries(PLANET_LIST.map((planet) => [planet.id, emptyMetrics()])) as GameState["planetMetrics"];
   const legacyVeins = [
     makeVein("vein_iron", "home", "iron_ore", -470, -250),
@@ -671,7 +687,12 @@ export function createInitialState(seed = DEFAULT_GALAXY_SEED, preserveBaseline 
   const entities = [...legacyVeins, ...generatedVeins].map((entity) => {
     if (!entity.resourceId || isInfiniteResource(entity.resourceId, entity.planetId, "finite", galaxy)) return entity;
     const reserve = createVeinReserve(galaxy, entity.planetId, entity.resourceId, entity.id);
-    return { ...entity, resourceRemaining: reserve, resourceCapacity: reserve };
+    if (!Number.isFinite(veinMultiplier)) {
+      // 无限矿石：储量数值保留基准值作为回退显示，运行时按无限矿脉结算。
+      return { ...entity, resourceInfinite: true, resourceRemaining: reserve, resourceCapacity: reserve };
+    }
+    const scaled = Math.max(1, Math.floor(reserve * veinMultiplier));
+    return { ...entity, resourceRemaining: scaled, resourceCapacity: scaled };
   });
   return {
     version: 47,
@@ -785,6 +806,8 @@ export function createInitialState(seed = DEFAULT_GALAXY_SEED, preserveBaseline 
       autoShortageNavigation: false,
       resourceMode: "finite",
       difficulty: "standard",
+      veinMultiplier: generationOptions.veinMultiplier ?? 1,
+      powerGenerationMultiplier: generationOptions.powerGenerationMultiplier ?? 1,
     },
     contentPacks: [],
     achievements: { unlockedIds: [] },
@@ -849,13 +872,20 @@ export function createInitialState(seed = DEFAULT_GALAXY_SEED, preserveBaseline 
   };
 }
 
-export function createPlayerInitialState(): GameState {
-  return createInitialState(createPlayerGalaxySeed(), false);
+export function createPlayerInitialState(options: InitialStateGenerationOptions & { seed?: number } = {}): GameState {
+  const seed = typeof options.seed === "number" && Number.isFinite(options.seed) && options.seed >= 1
+    ? Math.floor(options.seed)
+    : createPlayerGalaxySeed();
+  return createInitialState(seed, false, options);
 }
 
 /** Create a fresh, isolated speedrun factory. Existing saves never call this path. */
-export function createSpeedrunInitialState(nowMs = Date.now(), factoryId?: string): GameState {
-  const state = createPlayerInitialState();
+export function createSpeedrunInitialState(
+  nowMs = Date.now(),
+  factoryId?: string,
+  options: InitialStateGenerationOptions & { seed?: number } = {},
+): GameState {
+  const state = createPlayerInitialState(options);
   state.mode = "speedrun";
   state.orbitalStation = createOrbitalStationState({ mode: "speedrun", nowMs });
   state.speedrun = createSpeedrunState(state, nowMs, factoryId);
@@ -936,8 +966,14 @@ function consumeFiniteVeinReserve(entity: FactoryEntity, amount: number, consump
   entity.resourceDepletionRemainder = accruedTenths - depleted * VEIN_DEPLETION_SCALE;
 }
 
+/** 精准难度：发电倍率（kind=power 的发电设施输出功率 × 该倍率）。 */
+function powerGenerationMultiplierOf(state: GameState): number {
+  return resolveFiniteResourceMultiplier(state.settings?.powerGenerationMultiplier);
+}
+
 function isVeinInfiniteForState(state: GameState, entity: FactoryEntity): boolean {
   if (!entity.resourceId) return false;
+  if (entity.resourceInfinite === true) return true;
   return isInfiniteResource(entity.resourceId, entity.planetId, state.settings.resourceMode, state.galaxy) ||
     getVeinConsumptionTenths(state, entity.resourceId) === 0;
 }
@@ -3862,9 +3898,9 @@ function fuelEnergyAvailable(entity: FactoryEntity): number {
     Math.floor((entity.inputs[entity.fuelItemId] ?? 0) + EPSILON) * energyPerItem;
 }
 
-function fuelGeneratorCapacityForStep(entity: FactoryEntity, seconds: number): number {
+function fuelGeneratorCapacityForStep(entity: FactoryEntity, seconds: number, generationMultiplier = 1): number {
   if (!isFuelGenerator(entity) || !entity.buildingId || seconds <= EPSILON) return 0;
-  const rated = (getBuilding(entity.buildingId).powerGenerationKw ?? 0) * entity.machineCount;
+  const rated = (getBuilding(entity.buildingId).powerGenerationKw ?? 0) * entity.machineCount * generationMultiplier;
   const fuelLimited = fuelEnergyAvailable(entity) * getFuelEfficiency(entity.buildingId) * 1000 / seconds;
   return Math.min(rated, fuelLimited);
 }
@@ -3883,9 +3919,9 @@ function itemOutputFree(state: GameState, entity: FactoryEntity, itemId: ItemId)
   return Math.floor(Math.max(0, capacity - (entity.outputs[itemId] ?? 0)) + EPSILON);
 }
 
-function accumulatorDischargeCapacityForStep(entity: FactoryEntity, seconds: number): number {
+function accumulatorDischargeCapacityForStep(entity: FactoryEntity, seconds: number, generationMultiplier = 1): number {
   if (entity.buildingId !== "accumulator" || seconds <= EPSILON) return 0;
-  const rated = (getBuilding("accumulator").powerGenerationKw ?? 0) * entity.machineCount;
+  const rated = (getBuilding("accumulator").powerGenerationKw ?? 0) * entity.machineCount * generationMultiplier;
   return Math.min(rated, storedEnergy(entity) * 1000 / seconds);
 }
 
@@ -3895,7 +3931,7 @@ function accumulatorChargeCapacityForStep(entity: FactoryEntity, seconds: number
   return Math.min(rated, Math.max(0, energyCapacity(entity) - storedEnergy(entity)) * 1000 / seconds);
 }
 
-function exchangerDischargeCapacityForStep(state: GameState, entity: FactoryEntity, seconds: number): number {
+function exchangerDischargeCapacityForStep(state: GameState, entity: FactoryEntity, seconds: number, generationMultiplier = 1): number {
   if (entity.buildingId !== "energy_exchanger" || entity.energyMode !== "discharge" || seconds <= EPSILON) return 0;
   const activeEnergy = storedEnergy(entity);
   const activeCells = activeEnergy > EPSILON ? 1 : 0;
@@ -3904,7 +3940,7 @@ function exchangerDischargeCapacityForStep(state: GameState, entity: FactoryEnti
   const availableEnergyMj = usableCells > 0
     ? activeEnergy + Math.max(0, usableCells - activeCells) * ACCUMULATOR_ENERGY_MJ
     : 0;
-  const rated = (getBuilding("energy_exchanger").powerGenerationKw ?? 0) * entity.machineCount;
+  const rated = (getBuilding("energy_exchanger").powerGenerationKw ?? 0) * entity.machineCount * generationMultiplier;
   return Math.min(rated, availableEnergyMj * 1000 / seconds);
 }
 
@@ -4013,6 +4049,7 @@ function allocateConsumerPower(consumers: PowerConsumer[], availableKw: number):
 }
 
 function calculatePower(state: GameState, seconds: number, planetId: PlanetId, gridId: PowerGridId, reception: DysonReceptionPlan, lookup?: SimulationLookupContext, profiler?: SimulationProfiler): PowerPlan {
+  const generationMultiplier = powerGenerationMultiplierOf(state);
   let windGenerationKw = 0;
   let solarGenerationKw = 0;
   let geothermalGenerationKw = 0;
@@ -4045,20 +4082,20 @@ function calculatePower(state: GameState, seconds: number, planetId: PlanetId, g
     if (entity.kind === "power" && entity.buildingId) {
       generatorCount += entity.machineCount;
       if (isFuelGenerator(entity)) {
-        const capacity = fuelGeneratorCapacityForStep(entity, seconds);
+        const capacity = fuelGeneratorCapacityForStep(entity, seconds, generationMultiplier);
         if (capacity > EPSILON) fuelCandidates.push({ entity, capacity });
       } else if (entity.buildingId === "accumulator") {
-        const discharge = accumulatorDischargeCapacityForStep(entity, seconds);
+        const discharge = accumulatorDischargeCapacityForStep(entity, seconds, generationMultiplier);
         const charge = accumulatorChargeCapacityForStep(entity, seconds);
         if (discharge > EPSILON) accumulatorCandidates.push({ entity, capacity: discharge });
         if (charge > EPSILON) accumulatorChargeCandidates.push({ entity, capacity: charge });
       } else if (entity.buildingId === "energy_exchanger") {
-        const discharge = exchangerDischargeCapacityForStep(state, entity, seconds);
+        const discharge = exchangerDischargeCapacityForStep(state, entity, seconds, generationMultiplier);
         const charge = exchangerChargeCapacityForStep(state, entity, seconds);
         if (discharge > EPSILON) exchangerDischargeCandidates.push({ entity, capacity: discharge });
         if (charge > EPSILON) exchangerChargeCandidates.push({ entity, capacity: charge });
       } else {
-        const rated = (getBuilding(entity.buildingId).powerGenerationKw ?? 0) * entity.machineCount;
+        const rated = (getBuilding(entity.buildingId).powerGenerationKw ?? 0) * entity.machineCount * generationMultiplier;
         const output = entity.buildingId === "solar_panel"
           ? rated * getPlanetSolarPowerMultiplier(state, planetId)
           : entity.buildingId === "geothermal_power_station"
@@ -4495,13 +4532,14 @@ function runPowerFacilities(
   entities = state.entities,
   batchPowerStorage = true,
   profiler?: SimulationProfiler,
+  generationMultiplier = 1,
 ): void {
   for (const entity of entities) {
     if (entity.planetId !== planetId || entity.kind !== "power" || !entity.buildingId) continue;
     const outputKw = power.powerOutputByEntity.get(entity.id) ?? 0;
     const inputKw = power.powerInputByEntity.get(entity.id) ?? 0;
     const building = getBuilding(entity.buildingId);
-    const ratedKw = (building.powerGenerationKw ?? 0) * entity.machineCount;
+    const ratedKw = (building.powerGenerationKw ?? 0) * entity.machineCount * generationMultiplier;
     entity.powerOutputKw = round(outputKw, 2);
     entity.powerInputKw = round(inputKw, 2);
     entity.utilization = ratedKw > EPSILON ? round(Math.max(outputKw, inputKw) / ratedKw, 4) : 0;
@@ -4532,13 +4570,14 @@ function runPowerFacilities(
 }
 
 function fuelReserveSeconds(state: GameState, planetId: PlanetId, gridId?: PowerGridId, lookup?: SimulationLookupContext): number {
+  const generationMultiplier = powerGenerationMultiplierOf(state);
   let electricEnergyMj = 0;
   let ratedGeneratorKw = 0;
   const entities = lookup ? (lookup.entitiesByPlanet.get(planetId) ?? []) : state.entities;
   for (const entity of entities) {
     if (entity.planetId !== planetId || (gridId && getEntityPowerGridId(entity) !== gridId) || !isFuelGenerator(entity) || !entity.buildingId) continue;
     electricEnergyMj += fuelEnergyAvailable(entity) * getFuelEfficiency(entity.buildingId);
-    ratedGeneratorKw += (getBuilding(entity.buildingId).powerGenerationKw ?? 0) * entity.machineCount;
+    ratedGeneratorKw += (getBuilding(entity.buildingId).powerGenerationKw ?? 0) * entity.machineCount * generationMultiplier;
   }
   return ratedGeneratorKw > EPSILON ? round(electricEnergyMj * 1000 / ratedGeneratorKw, 1) : 0;
 }
@@ -7210,6 +7249,7 @@ export function runPlanetSimulationPhase(
     phaseLookup.entitiesByPlanet.get(planetId) ?? [],
     batchPowerStorage,
     profiler,
+    powerGenerationMultiplierOf(state),
   );
   if (profiler) profiler.powerMs += profileNow() - subsystemStartedAt;
   subsystemStartedAt = profiler ? profileNow() : 0;
@@ -8459,6 +8499,8 @@ export function isStarSystemUnlocked(state: GameState, systemId: StarSystemId): 
 export function canExploreStarSystem(state: GameState, systemId: StarSystemId): boolean {
   const system = STAR_SYSTEMS[systemId];
   if (!system || isStarSystemUnlocked(state, systemId) || state.exploration.missions.some((mission) => mission.systemId === systemId)) return false;
+  // 星系个数生成选项：不在本存档星系清单中的恒星系永远不可勘探。
+  if (!isStarSystemIncluded(state.galaxy, systemId)) return false;
   if (system.requiredTechId && !isTechnologyCompleted(state, system.requiredTechId)) return false;
   if (system.prerequisiteSystemId && !isStarSystemUnlocked(state, system.prerequisiteSystemId)) return false;
   return system.explorationCost.every((cost) => (state.tray[cost.itemId] ?? 0) + EPSILON >= cost.amount);

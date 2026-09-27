@@ -29,6 +29,8 @@ export interface LocalSaveCatalog {
   /** True only when both envelope and state explicitly carried the same mode. */
   modeExplicit?: boolean;
   reason: string | null;
+  /** 玩家自定义存档名称（envelope 头字段，≤64 字符；null 表示未命名）。 */
+  name: string | null;
   settings: Partial<GameSettings> | null;
 }
 
@@ -51,7 +53,10 @@ export function serializeLocalSaveCatalog(catalog: LocalSaveCatalog): string {
     value = JSON.stringify({ ...catalog, settings: null });
   }
   if (new TextEncoder().encode(value).byteLength >= LOCAL_SAVE_CATALOG_MAX_BYTES) {
-    value = JSON.stringify({ ...catalog, reason: catalog.reason?.slice(0, 32) ?? null, settings: null });
+    value = JSON.stringify({ ...catalog, name: catalog.name?.slice(0, 16) ?? null, reason: catalog.reason?.slice(0, 32) ?? null, settings: null });
+  }
+  if (new TextEncoder().encode(value).byteLength >= LOCAL_SAVE_CATALOG_MAX_BYTES) {
+    value = JSON.stringify({ ...catalog, name: null, reason: null, settings: null });
   }
   if (new TextEncoder().encode(value).byteLength >= LOCAL_SAVE_CATALOG_MAX_BYTES) throw new Error("Local save catalog must stay below 4 KiB");
   return value;
@@ -71,6 +76,7 @@ export function parseLocalSaveCatalog(value: string | null | undefined, expected
       typeof candidate.payloadChecksum !== "string" || !/^[0-9a-f]{8}$/.test(candidate.payloadChecksum) ||
       typeof candidate.activePlanetId !== "string" || candidate.activePlanetId.length > 128 ||
       !(candidate.reason === null || typeof candidate.reason === "string" && candidate.reason.length <= 256) ||
+      !(candidate.name === null || typeof candidate.name === "string" && candidate.name.length > 0 && candidate.name.length <= 64) ||
       !(candidate.settings === null || Boolean(candidate.settings) && typeof candidate.settings === "object" && !Array.isArray(candidate.settings)) ||
       !(candidate.stateChecksum === null || typeof candidate.stateChecksum === "string" && candidate.stateChecksum.length <= 256)) return null;
     if (candidate.modeExplicit !== undefined && typeof candidate.modeExplicit !== "boolean") return null;

@@ -400,7 +400,7 @@ export function AdminDashboard() {
     return (
       <main className="admin-login-shell">
         <form className="admin-login" onSubmit={authenticate}>
-          <span className="admin-brand"><ShieldCheck size={24} /><strong>DSP极简网络</strong><small>运营数据后台</small></span>
+          <span className="admin-brand"><ShieldCheck size={24} /><strong>{__APP_DISPLAY_NAME__}</strong><small>运营数据后台</small></span>
           <label><span>管理员凭据</span><div><KeyRound size={17} /><StableTextInput sensitive draftId="admin-credential" type="password" value={draftToken} onValueChange={setDraftToken} autoComplete="current-password" autoFocus /></div></label>
           {error ? <p role="alert">{error}</p> : null}
           <button type="submit" disabled={!draftToken.trim() || loading}>{loading ? <RefreshCw className="spin" size={17} /> : <ShieldCheck size={17} />}{loading ? "正在验证" : "进入后台"}</button>
@@ -418,7 +418,7 @@ export function AdminDashboard() {
   return (
     <main className="admin-shell">
       <header className="admin-header">
-        <span className="admin-brand"><ShieldCheck size={22} /><strong>DSP极简网络</strong><small>运营后台</small></span>
+        <span className="admin-brand"><ShieldCheck size={22} /><strong>{__APP_DISPLAY_NAME__}</strong><small>运营后台</small></span>
         <nav aria-label="统计时间范围">{[1, 7, 30, 90].map((value) => <button className={days === value ? "active" : ""} type="button" key={value} onClick={() => setDays(value)}>{value === 1 ? "今日" : `${value} 天`}</button>)}</nav>
         <span className="admin-refresh-state"><i className={loading ? "busy" : ""} />{new Date(metrics.generatedAt).toLocaleTimeString("zh-CN", { hour12: false })}</span>
         <button className="admin-icon-button" type="button" onClick={() => void refresh()} title="刷新数据"><RefreshCw size={17} /></button>

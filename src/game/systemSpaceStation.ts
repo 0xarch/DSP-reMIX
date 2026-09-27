@@ -277,7 +277,7 @@ export function startSystemSpaceStationConstruction(state: GameState, systemId: 
     },
   };
   if (!isSpaceStationFreeBuildTestMode()) return next;
-  const applied = applyConstructionBuffer(next.systemSpaceStations[systemId]!, next.research);
+  const applied = applyConstructionBuffer((next.systemSpaceStations as Record<string, SystemSpaceStationState>)[systemId]!, next.research);
   return {
     ...next,
     systemSpaceStations: {

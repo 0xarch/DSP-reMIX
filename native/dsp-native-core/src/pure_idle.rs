@@ -1443,7 +1443,8 @@ fn finite_vein_snapshot_at(
         .unwrap_or("none");
     let naturally_infinite = consumption_tenths == 0
         || resource_id == "water" && ocean_type == "water"
-        || resource_id == "sulfuric_acid" && ocean_type == "sulfuric-acid";
+        || resource_id == "sulfuric_acid" && ocean_type == "sulfuric-acid"
+        || entity.get("resourceInfinite").and_then(Value::as_bool) == Some(true);
     if naturally_infinite {
         return Ok(None);
     }

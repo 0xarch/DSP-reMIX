@@ -1,6 +1,7 @@
 import { Box, PackageOpen, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ITEMS, PLANETS } from "../game/content";
+import { getItemIconUrl } from "../content/dsp/itemIcons";
 import type { NativeFactoryInventoryFrame } from "../game/nativeFactoryInventoryStore";
 import type { DraggedItemSourceKind, ItemDefinition, ItemId, PlanetDefinition } from "../game/types";
 import { getAccessibleItemGlyphTextColor, ItemGlyph, ItemHoverCard } from "./ItemReference";
@@ -42,6 +43,14 @@ function itemLabel(itemId: string): string {
 function NativeCargoMark({ itemId }: { itemId: string }) {
   const item = ITEM_DIRECTORY[itemId];
   if (!item) return <i className="item-glyph item-glyph--solid">?</i>;
+  const iconUrl = getItemIconUrl(itemId as ItemId);
+  if (iconUrl) {
+    return (
+      <i className={`item-glyph item-glyph--image item-glyph--${item.kind}`} style={{ backgroundColor: item.color }} title={item.name}>
+        <img src={iconUrl} alt={item.name} draggable={false} loading="lazy" />
+      </i>
+    );
+  }
   return <i
     className={`item-glyph item-glyph--${item.kind}`}
     style={{ backgroundColor: item.color, color: getAccessibleItemGlyphTextColor(item.color) }}

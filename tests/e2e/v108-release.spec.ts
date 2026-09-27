@@ -2,8 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 const RELEASE_NOTE_ID = "2026-09-22-v1.3.0";
 
-async function seedV108Factory(page: Page, options: { mobileUi?: "legacy" | "next"; theme?: "dark" | "light"; fontScale?: number } = {}) {
-  await page.addInitScript(({ releaseNoteId, mobileUi, theme, fontScale }) => {
+async function seedV108Factory(page: Page, options: { mobileUi?: "legacy" | "next"; fontScale?: number } = {}) {
+  await page.addInitScript(({ releaseNoteId, mobileUi, fontScale }) => {
     const base = {
       planetId: "home",
       minerCount: 0,
@@ -34,7 +34,7 @@ async function seedV108Factory(page: Page, options: { mobileUi?: "legacy" | "nex
       totalProduced: {},
       elapsedSeconds: 12_143,
       research: { selectedTechId: null, pausedTechId: null, queuedTechIds: [], progressByTech: {}, completedTechIds: ["electromagnetism", "basic_logistics", "material_delivery_logistics"] },
-      settings: { theme, fontScale, simulationSpeed: 1, autosaveIntervalSeconds: 30, resourceMode: "finite" },
+      settings: { theme: "dark", fontScale, simulationSpeed: 1, autosaveIntervalSeconds: 30, resourceMode: "finite" },
       paused: false,
     };
     window.sessionStorage.setItem("dsp-idle-network.test-bypass-menu", "1");
@@ -45,7 +45,6 @@ async function seedV108Factory(page: Page, options: { mobileUi?: "legacy" | "nex
   }, {
     releaseNoteId: RELEASE_NOTE_ID,
     mobileUi: options.mobileUi ?? "legacy",
-    theme: options.theme ?? "dark",
     fontScale: options.fontScale ?? 1,
   });
 }
@@ -162,11 +161,10 @@ test("delivery-hub ports reset independently and the performance monitor samples
   await page.screenshot({ path: "artifacts/qa/v108-performance-desktop-1440x900.png", fullPage: true });
 });
 
-test("light fabrication names remain readable and next-mobile delivery controls keep 44px targets at 200 percent", async ({ page }) => {
-  await seedV108Factory(page, { theme: "light" });
+test("fabrication names remain readable and next-mobile delivery controls keep 44px targets at 200 percent", async ({ page }) => {
+  await seedV108Factory(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await openFactory(page);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.locator(".inspector-panel").getByRole("tab", { name: "基础制造" }).click();
   const readable = await page.locator(".construction-item > span").first().evaluate((element) => {
     const parse = (value: string) => (value.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0]).map((channel) => {
@@ -192,7 +190,7 @@ test("light fabrication names remain readable and next-mobile delivery controls 
     return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
   });
   expect(handcraftReadable).toBeGreaterThanOrEqual(4.5);
-  await page.screenshot({ path: "artifacts/qa/v108-light-fabrication-1440x900.png", fullPage: true });
+  await page.screenshot({ path: "artifacts/qa/v108-fabrication-1440x900.png", fullPage: true });
 });
 
 test("next-mobile delivery controls remain reachable at 200 percent text", async ({ page }) => {

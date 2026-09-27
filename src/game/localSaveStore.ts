@@ -562,6 +562,7 @@ function buildFallbackCatalog(key: string, value: string): LocalSaveCatalog {
     structurePoints: typeof state?.dysonSphere?.structurePoints === "number" ? Math.max(0, Math.floor(state.dysonSphere.structurePoints)) : 0,
     integrity: parsed ? "missing" : "invalid", stateChecksum: typeof parsed?.checksum === "string" ? parsed.checksum : null,
     reason: typeof parsed?.reason === "string" ? parsed.reason : null,
+    name: typeof parsed?.name === "string" && parsed.name.trim() ? parsed.name.trim().slice(0, 64) : null,
     settings: state?.settings && typeof state.settings === "object" ? state.settings : null,
   };
 }
@@ -2315,6 +2316,7 @@ function provisionalCatalog(key: string): LocalSaveCatalog {
     schemaVersion: 1,
     key,
     mode,
+    name: null,
     kind: category.category === "backup" ? "backup" : category.category === "slot" ? "slot" :
       category.category === "automatic-snapshot" || category.category === "manual-snapshot" ? "snapshot" :
         category.category === "protected" ? "protected" : category.category === "import-cache" ? "import-cache" : "primary",

@@ -4,6 +4,7 @@ import {
   applyContentPackRuntimeSnapshot,
   type ContentPackRegistry,
 } from "./contentPacks";
+import { syncDynamicGalaxyCatalog } from "./content";
 import {
   applyPureIdleMacroFinalState,
   advancePureIdleMacroSession,
@@ -118,6 +119,7 @@ async function processRequest(request: PureIdleMacroWorkerRequest): Promise<void
       postProgress(replication ? "running" : request.forceConservativeReason ? "conservative" : "preparing-power");
       sessionContext = null;
       applyContentPackRuntimeSnapshot(request.registry);
+      syncDynamicGalaxyCatalog(request.state.galaxy);
       postProgress(replication ? "running" : request.forceConservativeReason ? "conservative" : "calibrating");
       const consumeCalibrationState = request.state.entities.length >= PURE_IDLE_MACRO_LIGHTWEIGHT_ENTITY_THRESHOLD ||
         request.state.belts.length >= PURE_IDLE_MACRO_LIGHTWEIGHT_BELT_THRESHOLD;

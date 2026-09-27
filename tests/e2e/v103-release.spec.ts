@@ -3,8 +3,8 @@ import { selectSettingsCategory } from "./settings-helpers";
 
 const RELEASE_NOTE_ID = "2026-09-22-v1.3.0";
 
-async function seedReleaseFactory(page: Page, options: { theme?: "dark" | "light"; locale?: "zh-CN" | "en"; paused?: boolean; mobileUi?: "legacy" | "next" } = {}) {
-  await page.addInitScript(({ releaseNoteId, theme, locale, paused, mobileUi }) => {
+async function seedReleaseFactory(page: Page, options: { locale?: "zh-CN" | "en"; paused?: boolean; mobileUi?: "legacy" | "next" } = {}) {
+  await page.addInitScript(({ releaseNoteId, locale, paused, mobileUi }) => {
     // Keep this development fixture on the freshly built bundle instead of a
     // service-worker cache from an earlier focused run.
     void globalThis.caches?.keys().then((keys) => Promise.all(keys.map((key) => globalThis.caches!.delete(key))));
@@ -133,7 +133,7 @@ async function seedReleaseFactory(page: Page, options: { theme?: "dark" | "light
         ],
       },
       settings: {
-        theme,
+        theme: "dark",
         fontScale: 1,
         simulationSpeed: 1,
         autosaveIntervalSeconds: 30,
@@ -149,7 +149,6 @@ async function seedReleaseFactory(page: Page, options: { theme?: "dark" | "light
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   }, {
     releaseNoteId: RELEASE_NOTE_ID,
-    theme: options.theme ?? "dark",
     locale: options.locale ?? "zh-CN",
     paused: options.paused ?? true,
     mobileUi: options.mobileUi ?? "legacy",
@@ -424,8 +423,8 @@ test("logistics vessels recursively quick-craft into the portable fleet", async 
   await page.screenshot({ path: "artifacts/qa/v103-recursive-vessel-mobile-390x844.png", fullPage: true });
 });
 
-test("new production-location surfaces remain English in light mode", async ({ page }) => {
-  await seedReleaseFactory(page, { theme: "light", locale: "en" });
+test("new production-location surfaces remain English", async ({ page }) => {
+  await seedReleaseFactory(page, { locale: "en" });
   await page.setViewportSize({ width: 1920, height: 1080 });
   await openGame(page, "/?lang=en");
   await openHeaderWorkspace(page, "Open Production Library", /^Production Library$/);
@@ -436,8 +435,7 @@ test("new production-location surfaces remain English in light mode", async ({ p
   await expect(indicator).toContainText("Production Line Locator");
   const visibleText = await indicator.innerText();
   expect(visibleText).not.toMatch(/[\u3400-\u9fff]/);
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.screenshot({ path: "artifacts/qa/v103-production-locator-english-light-1920x1080.png", fullPage: true });
+  await page.screenshot({ path: "artifacts/qa/v103-production-locator-english-1920x1080.png", fullPage: true });
 });
 
 test("next-version selection, line finder, planet statistics and local settings stay reachable", async ({ page }) => {

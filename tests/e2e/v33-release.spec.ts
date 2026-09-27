@@ -191,7 +191,7 @@ test("refresh controls remain usable in classic and next mobile shells at 200 pe
     }
     const operations = page.getByRole("dialog", { name: "运营中心" });
     await operations.getByRole("tab", { name: "设置" }).click();
-    await selectSettingsCategory(operations, "画面与主题", "visual");
+    await selectSettingsCategory(operations, "画面与显示", "visual");
     await operations.getByLabel("字体大小").getByRole("button", { name: "200%" }).click();
     await selectSettingsCategory(operations, "终局性能", "performance");
     const refresh = operations.getByRole("radiogroup", { name: "生产画面刷新频率" });

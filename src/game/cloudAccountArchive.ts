@@ -778,7 +778,7 @@ export async function downloadCloudAccountArchive(
         suggestedName: fileName,
         excludeAcceptAllOption: true,
         types: [{
-          description: "DSP极简网络账号归档",
+          description: `${__APP_DISPLAY_NAME__}账号归档`,
           accept: { [CLOUD_ACCOUNT_ARCHIVE_CONTENT_TYPE]: [ARCHIVE_SUFFIX] },
         }],
       });

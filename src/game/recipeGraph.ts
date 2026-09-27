@@ -1,4 +1,4 @@
-import { PLANET_LIST, RECIPES, TECHNOLOGY_LIST, getBuilding } from "./content";
+import { PLANET_LIST, PLANETS, RECIPES, TECHNOLOGY_LIST, getBuilding } from "./content";
 import { PLANET_TEMPLATE_POOLS, PLANET_TEMPLATES } from "./galaxyCatalog";
 import type { BuildingId, ItemId, PlanetId, RecipeDefinition, TechnologyDefinition } from "./types";
 
@@ -28,14 +28,19 @@ const SOLID_VEIN_SOURCE = (planetIds: PlanetId[]): ResourceSourceDefinition => (
   manual: true,
 });
 
-const POTENTIAL_VEIN_PLANETS = (itemId: ItemId): PlanetId[] => PLANET_LIST.flatMap((planet) =>
-  PLANET_TEMPLATE_POOLS[planet.id].some((templateId) => {
+// 生成的行星没有静态模板池条目；其资源来自生成时的 planet type 概率表，
+// 由内容目录注册时的 PLANETS[planetId].resources 描述兜底。
+const POTENTIAL_VEIN_PLANETS = (itemId: ItemId): PlanetId[] => PLANET_LIST.flatMap((planet) => {
+  const pool = PLANET_TEMPLATE_POOLS[planet.id];
+  if (!pool || !PLANETS[planet.id]) return [];
+  return pool.some((templateId) => {
     const template = PLANET_TEMPLATES[templateId];
     return template.resourceIds.includes(itemId) || template.rareResourcePool.includes(itemId);
-  }) ? [planet.id] : []);
+  }) ? [planet.id] : [];
+});
 
 const POTENTIAL_ORBIT_PLANETS = (itemId: ItemId): PlanetId[] => PLANET_LIST.flatMap((planet) =>
-  PLANET_TEMPLATE_POOLS[planet.id].some((templateId) => (PLANET_TEMPLATES[templateId].orbitalYields[itemId] ?? 0) > 0)
+  (PLANET_TEMPLATE_POOLS[planet.id] ?? []).some((templateId) => (PLANET_TEMPLATES[templateId].orbitalYields[itemId] ?? 0) > 0)
     ? [planet.id]
     : []);
 

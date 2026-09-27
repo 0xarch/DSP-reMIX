@@ -57,7 +57,7 @@ export function safeExportFileName(value: string): string {
   return normalized || "dsp-export.json";
 }
 
-export async function exportTextFile({ contents, fileName, mimeType = "application/json", title = "导出 DSP极简网络数据" }: TextFileExport): Promise<"native" | "browser"> {
+export async function exportTextFile({ contents, fileName, mimeType = "application/json", title = `导出 ${__APP_DISPLAY_NAME__}数据` }: TextFileExport): Promise<"native" | "browser"> {
   const safeName = safeExportFileName(fileName);
   if (__APP_PLATFORM__ === "android") {
     const { Capacitor, registerPlugin } = await import("@capacitor/core");
@@ -97,7 +97,7 @@ export async function exportBinaryFile({
   contents,
   fileName,
   mimeType = "application/octet-stream",
-  title = "导出 DSP极简网络数据",
+  title = `导出 ${__APP_DISPLAY_NAME__}数据`,
 }: BinaryFileExport): Promise<"native" | "browser"> {
   const safeName = safeExportFileName(fileName);
   const blob = contents instanceof Blob ? contents : new Blob([contents], { type: mimeType });

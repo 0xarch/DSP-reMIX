@@ -195,7 +195,8 @@ fn derive_transition(
         .and_then(Value::as_str)
         .filter(|mode| matches!(*mode, "finite" | "infinite"))
         .ok_or_else(|| anyhow!("native manual mining resource mode is invalid"))?;
-    let finite_reserve_after = if resource_mode == "finite" && consumption_tenths > 0 {
+    let vein_flagged_infinite = entity.get("resourceInfinite").and_then(Value::as_bool) == Some(true);
+    let finite_reserve_after = if resource_mode == "finite" && !vein_flagged_infinite && consumption_tenths > 0 {
         let remaining = safe_counter(entity.get("resourceRemaining"), "remaining reserve")?;
         let remainder = safe_counter(
             entity.get("resourceDepletionRemainder"),

@@ -21,9 +21,11 @@ import {
   getDysonPowerMultiplier,
   settleCompletedResearchBoundaries,
 } from "./engine";
+import { syncDynamicGalaxyCatalog } from "./content";
+import type { GalaxyGenerationOptions } from "./types";
 import { BUILDINGS, ITEMS, PLANET_LIST, STAR_SYSTEMS, getBeltConstructionId, getBuilding, getExtractorBuildingId, getPlanet, getRecipe, getTechnology, isRegisteredBeltTier } from "./content";
 import { normalizeCampaignState, syncCampaignProgress } from "./campaign";
-import { isDifficultyMode } from "./difficulty";
+import { isDifficultyMode, normalizeResourceMultiplierSetting } from "./difficulty";
 import { isAchievementId } from "./progression";
 import { DEFAULT_GALAXY_SEED, GUARANTEED_CRUDE_OIL_PLANETS, createVeinReserve, getPlanetOrbitalYields, getStarLuminosity, isInfiniteResource, normalizeGalaxyState } from "./galaxy";
 import { createEndgameState, getOfflineSimulationLimitSeconds } from "./endgame";
@@ -228,6 +230,8 @@ interface SaveEnvelope {
   formatVersion?: number;
   kind?: "primary" | "slot" | "snapshot";
   reason?: string;
+  /** 玩家自定义存档名称；不计入 envelope/state 校验和，重命名只重写该头字段。 */
+  name?: string;
   mode?: SaveMode;
   slot?: SaveSlotId | "main";
   savedAt: number;
@@ -1100,7 +1104,13 @@ export function migrateGame(value: unknown, contentPackRegistry: ContentPackRegi
   const savedSeed = saved.version >= 20 && typeof saved.galaxy?.seed === "number" && Number.isFinite(saved.galaxy.seed)
     ? saved.galaxy.seed
     : DEFAULT_GALAXY_SEED;
-  const initial = createInitialState(savedSeed, saved.version < 20);
+  // 迁移基线必须与被迁移存档的星系形状一致（生成的星系/行星在 PLANET_LIST
+  // 已注册，基线的 powerGridMetrics/planetViewports 等需要覆盖同样的键）。
+  const initial = createInitialState(savedSeed, saved.version < 20, {
+    galaxyOptions: saved.version >= 20 && saved.galaxy?.generation && typeof saved.galaxy.generation === "object"
+      ? saved.galaxy.generation as Partial<GalaxyGenerationOptions>
+      : undefined,
+  });
   const initialResourceById = saved.version < 13
     ? new Map(initial.entities.filter((entity) => entity.kind === "vein").map((entity) => [entity.id, entity] as const))
     : null;
@@ -2269,6 +2279,8 @@ export function migrateGame(value: unknown, contentPackRegistry: ContentPackRegi
       : initial.settings.autoShortageNavigation,
     resourceMode: saved.version >= 20 && saved.settings?.resourceMode === "finite" ? "finite" : "infinite",
     difficulty: isDifficultyMode(saved.settings?.difficulty) ? saved.settings.difficulty : initial.settings.difficulty,
+    veinMultiplier: normalizeResourceMultiplierSetting(saved.settings?.veinMultiplier) ?? initial.settings.veinMultiplier,
+    powerGenerationMultiplier: normalizeResourceMultiplierSetting(saved.settings?.powerGenerationMultiplier) ?? initial.settings.powerGenerationMultiplier,
   };
 
   const recipeFocus: GameState["recipeFocus"] = {
@@ -2648,6 +2660,8 @@ export function inspectSave(raw: string, contentPackRegistry?: ContentPackRegist
   const migrationState = envelope.mode === undefined
     ? envelope.state
     : rawStateMode === undefined ? { ...envelope.state, mode: envelopeMode } : envelope.state;
+  // 程序化星系：解析即注册（含全部 worker），迁移的白名单校验才能放行生成 ID。
+  syncDynamicGalaxyCatalog(envelope.state.galaxy);
   let state: GameState | null = null;
   try {
     state = migrateGame(migrationState, contentPackRegistry);
@@ -2825,6 +2839,8 @@ function parseEnvelope(raw: string, advanceOffline: boolean): LoadedGame | null 
 function loadInspection(inspection: SaveInspection, advanceOffline: boolean): LoadedGame | null {
   if (!inspection.valid || !inspection.state) return null;
   const state = inspection.state;
+  // 载入含程序化星系的存档时，把生成的星系/行星注册进内容目录。
+  syncDynamicGalaxyCatalog(state.galaxy);
   const savedAt = inspection.savedAt ?? Date.now();
   const offlineSeconds = advanceOffline && !state.paused
     ? Math.min(getOfflineSimulationLimitSeconds(state), Math.max(0, (Date.now() - savedAt) / 1000))
@@ -4270,6 +4286,68 @@ export async function clearGameSlotVerified(slotId: SaveSlotId, mode: SaveMode =
     invalidateSaveSummaryCache(key);
     await flushLocalSaveWrites();
     return await readPersistedLocalSaveValue(key) === null;
+  } catch {
+    await recoverLocalSaveCache();
+    return false;
+  }
+}
+
+/** 删除模式主存档（continue 存档）及其备份与旧版键，使其无法再被恢复或继续。 */
+export async function clearPrimarySaveVerified(mode: SaveMode = "normal"): Promise<boolean> {
+  const keys = mode === "normal"
+    ? [primarySaveKey(mode), backupSaveKey(mode), SAVE_KEY]
+    : [primarySaveKey(mode), backupSaveKey(mode)];
+  try {
+    for (const key of keys) {
+      removeLocalSaveValue(key);
+      invalidateSaveSummaryCache(key);
+    }
+    await flushLocalSaveWrites();
+    for (const key of keys) {
+      if (await readPersistedLocalSaveValue(key) !== null) return false;
+    }
+    return true;
+  } catch {
+    await recoverLocalSaveCache();
+    return false;
+  }
+}
+
+export type LocalSaveRenameTarget =
+  | { kind: "slot"; slotId: SaveSlotId; mode: SaveMode }
+  | { kind: "primary"; mode: SaveMode }
+  | { kind: "snapshot"; id: string; mode: SaveMode };
+
+export const SAVE_NAME_MAX_LENGTH = 64;
+
+function localSaveRenameTargetKey(target: LocalSaveRenameTarget): string {
+  if (target.kind === "slot") return saveSlotKey(target.slotId, target.mode);
+  if (target.kind === "snapshot") return `${snapshotSavePrefix(target.mode)}.${target.id}`;
+  return primarySaveKey(target.mode);
+}
+
+/**
+ * 重命名本地存档：只在 envelope 头写入/清除 `name`，state 与校验和保持不变。
+ * 写回经既有的 CAS/协调通道，catalog 会在写入时自动重建并携带新名称。
+ */
+export async function renameLocalSaveVerified(target: LocalSaveRenameTarget, rawName: string): Promise<boolean> {
+  const key = localSaveRenameTargetKey(target);
+  const name = rawName.trim().slice(0, SAVE_NAME_MAX_LENGTH);
+  try {
+    const raw = await readPersistedLocalSaveValue(key);
+    if (raw === null) return false;
+    const envelope = JSON.parse(raw) as Partial<SaveEnvelope> & { state?: unknown };
+    if (!envelope || typeof envelope !== "object" || !envelope.state) return false;
+    const next = { ...envelope };
+    if (name) next.name = name;
+    else delete next.name;
+    setLocalSaveValue(key, JSON.stringify(next));
+    invalidateSaveSummaryCache(key);
+    await flushLocalSaveWrites();
+    const persisted = await readPersistedLocalSaveValue(key);
+    if (persisted === null) return false;
+    const verified = JSON.parse(persisted) as { name?: string };
+    return (verified.name ?? "") === name;
   } catch {
     await recoverLocalSaveCache();
     return false;

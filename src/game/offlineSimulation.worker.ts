@@ -2,6 +2,7 @@
 
 import { completeSimulationAdvanceSession, createSimulationAdvanceSession } from "./engine";
 import { applyContentPackRuntimeSnapshot } from "./contentPacks";
+import { syncDynamicGalaxyCatalog } from "./content";
 import { advanceOfflineSimulationChunk, buildBackgroundFinalEnvelope, type CloudUploadSummary, type OfflineSimulationWorkerRequest, type OfflineSimulationWorkerResponse } from "./offlineSimulation";
 import {
   FAST_OFFLINE_ALGORITHM_VERSION,
@@ -154,6 +155,7 @@ self.onmessage = async (event: MessageEvent<OfflineSimulationWorkerRequest>) => 
   };
   try {
     applyContentPackRuntimeSnapshot(request.registry);
+    if ("state" in request && request.state) syncDynamicGalaxyCatalog(request.state.galaxy);
     if (request.type === "prepare-upload") {
       const sourceBytes = request.rawBytes.byteLength;
       let sourceRaw = new TextDecoder("utf-8", { fatal: true }).decode(request.rawBytes);
@@ -167,6 +169,7 @@ self.onmessage = async (event: MessageEvent<OfflineSimulationWorkerRequest>) => 
       const offlineSeconds = !request.skipOffline && !inspection.state.paused
         ? Math.min(getOfflineSimulationLimitSeconds(inspection.state), Math.max(0, (request.now - savedAt) / 1000))
         : 0;
+      syncDynamicGalaxyCatalog(inspection.state.galaxy);
       const session = createSimulationAdvanceSession(inspection.state, offlineSeconds);
       const offlineStartedAt = nowMs();
       const runChunk = async () => {

@@ -14,7 +14,6 @@ interface CanvasMiniMapProps {
   viewport: CanvasViewport;
   canvasWidth: number;
   canvasHeight: number;
-  lightTheme: boolean;
   onCenter: (x: number, y: number) => void;
   onZoom: (direction: 1 | -1) => void;
   onUnavailable: () => void;
@@ -102,7 +101,6 @@ export const CanvasMiniMap = memo(forwardRef<CanvasMiniMapHandle, CanvasMiniMapP
   viewport,
   canvasWidth,
   canvasHeight,
-  lightTheme,
   onCenter,
   onZoom,
   onUnavailable,
@@ -133,7 +131,7 @@ export const CanvasMiniMap = memo(forwardRef<CanvasMiniMapHandle, CanvasMiniMapP
     canvas.dataset.drawCount = String(++drawCountRef.current);
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
-    context.fillStyle = lightTheme ? "#eef4f0" : "#0f1513";
+    context.fillStyle = "#0f1513";
     context.fillRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
 
     for (const node of nodes) {
@@ -148,8 +146,8 @@ export const CanvasMiniMap = memo(forwardRef<CanvasMiniMapHandle, CanvasMiniMapP
     const visibleLeft = -currentViewport.x / zoom;
     const visibleTop = -currentViewport.y / zoom;
     context.globalAlpha = 1;
-    context.fillStyle = lightTheme ? "rgba(97, 169, 164, 0.12)" : "rgba(98, 181, 174, 0.14)";
-    context.strokeStyle = lightTheme ? "#28746f" : "#78d0c8";
+    context.fillStyle = "rgba(98, 181, 174, 0.14)";
+    context.strokeStyle = "#78d0c8";
     context.lineWidth = 1.5;
     const maskX = projection.offsetX + (visibleLeft - projection.minX) * projection.scale;
     const maskY = projection.offsetY + (visibleTop - projection.minY) * projection.scale;
@@ -157,7 +155,7 @@ export const CanvasMiniMap = memo(forwardRef<CanvasMiniMapHandle, CanvasMiniMapP
     const maskHeight = canvasHeight / zoom * projection.scale;
     context.fillRect(maskX, maskY, maskWidth, maskHeight);
     context.strokeRect(maskX, maskY, maskWidth, maskHeight);
-  }, [canvasHeight, canvasWidth, lightTheme, nodes, onUnavailable, worldBounds]);
+  }, [canvasHeight, canvasWidth, nodes, onUnavailable, worldBounds]);
 
   const scheduleDraw = useCallback(() => {
     if (drawFrameRef.current != null || drawTimerRef.current != null) return;

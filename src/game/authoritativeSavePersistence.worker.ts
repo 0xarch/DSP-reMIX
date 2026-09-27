@@ -254,6 +254,7 @@ function catalogFromSeed(
     stateChecksum: seed.stateChecksum,
     modeExplicit: true,
     reason: seed.reason,
+    name: null,
     settings: seed.settings,
   };
 }

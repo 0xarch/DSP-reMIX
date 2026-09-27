@@ -37,24 +37,14 @@ test("every primary desktop workspace entry toggles its own workspace closed", a
   }
 });
 
-test("theme and technology layout controls apply immediately and sorters stay hidden", async ({ page }) => {
+test("technology layout controls apply immediately and sorters stay hidden", async ({ page }) => {
   await openFactory(page);
-  await page.getByLabel("打开设置").click();
-  const operations = page.getByRole("dialog", { name: "运营中心" });
-  await operations.getByLabel("界面主题").getByRole("button", { name: "亮色" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe("light");
-  await page.screenshot({ path: "artifacts/qa/v31-light-theme-1440.png", fullPage: true });
-  await page.locator(".game-header").getByLabel("设置已打开，再次点击返回工厂").click();
-  await expect.poll(() => page.locator(".factory-canvas").evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe("rgb(9, 13, 12)");
-  await page.screenshot({ path: "artifacts/qa/v31-light-factory-1440.png", fullPage: true });
-
   await page.getByLabel("打开科技树").click();
   const technology = page.getByRole("dialog", { name: "科技树" });
   await technology.getByRole("button", { name: "精简", exact: true }).click();
   await expect(technology.locator(".technology-tree")).toHaveClass(/technology-tree--compact/);
   await expect(technology.locator(".technology-node").first()).toContainText(/\S+/);
-  await page.screenshot({ path: "artifacts/qa/v31-technology-compact-light-1440.png", fullPage: true });
+  await page.screenshot({ path: "artifacts/qa/v31-technology-compact-1440.png", fullPage: true });
   await page.locator(".game-header").getByLabel("科技树已打开，再次点击返回工厂").click();
 
   await page.locator(".game-header").getByLabel("打开生产资料库").click();
@@ -167,18 +157,15 @@ test("next mobile navigation closes technology and more when their active button
   await expect(page.locator('.game-shell[data-mobile-route="factory"]')).toBeVisible();
 });
 
-test("light theme covers the next mobile shell and factory cards", async ({ page }) => {
+test("dark theme covers the next mobile shell and factory cards", async ({ page }) => {
   await openFactory(page, { width: 390, height: 844 }, "/?mobileUi=next");
   await page.getByRole("button", { name: "更多", exact: true }).click();
   await page.getByRole("button", { name: /游戏设置/ }).click();
-  const operations = page.getByRole("dialog", { name: "运营中心" });
-  await operations.getByLabel("界面主题").getByRole("button", { name: "亮色" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "工厂", exact: true }).click();
   await expect(page.locator('.game-shell[data-mobile-route="factory"]')).toBeVisible();
   await expect.poll(() => page.locator(".mobile-next-topbar").evaluate((element) => {
     const channels = getComputedStyle(element).backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
     return channels.reduce((sum, channel) => sum + channel, 0);
-  })).toBeGreaterThan(700);
-  await page.screenshot({ path: "artifacts/qa/v31-light-mobile-390.png", fullPage: true });
+  })).toBeLessThan(300);
+  await page.screenshot({ path: "artifacts/qa/v31-dark-mobile-390.png", fullPage: true });
 });

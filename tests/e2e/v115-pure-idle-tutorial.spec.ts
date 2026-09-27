@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { selectSettingsCategory } from "./settings-helpers";
+import { readFileSync } from "node:fs";
+/** 应用显示名来自 package.json（名称统一配置的权威来源），断言随之动态读取。 */
+const APP_DISPLAY_NAME = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayName as string;
+
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -62,7 +66,7 @@ test("settings opens the complete tutorial and keeps independent reading progres
   await selectSettingsCategory(operations, "教程、版本与其他", "other");
   await operations.getByRole("button", { name: "打开新手教程" }).click();
   const tutorial = page.getByRole("dialog", { name: "新手教程" });
-  await expect(tutorial).toContainText(`DSP极简网络 · v${process.env.npm_package_version}`);
+  await expect(tutorial).toContainText(`${APP_DISPLAY_NAME} · v${process.env.npm_package_version}`);
   await expect(tutorial).toContainText("认识画布");
   await tutorial.getByRole("button", { name: "标记本节完成" }).click();
   await expect(tutorial.locator(".tutorial-progress")).toContainText("1/");

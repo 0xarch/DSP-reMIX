@@ -133,7 +133,7 @@
   height: 46px;
   place-items: center;
   border: 1px solid var(--theme-border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-xl);
   color: var(--cyan);
 }
 
@@ -145,10 +145,10 @@
 
 .mobile-detail-section { margin: 0 10px 10px; border-top: 1px solid var(--theme-border); }
 .mobile-detail-section > header { min-height: 40px; padding: 11px 4px 7px; color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
-.mobile-detail-section > p { margin: 0; padding: 10px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-surface); color: var(--theme-text-soft); font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.55; }
+.mobile-detail-section > p { margin: 0; padding: 10px; border: 1px solid var(--theme-border); border-radius: var(--radius-lg) background: var(--theme-surface); color: var(--theme-text-soft); font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.55; }
 .mobile-detail-spacer { min-height: 76px; }
 .mobile-detail-actionbar { position: sticky; z-index: 10; bottom: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; min-height: 64px; padding: 8px 10px; border-top: 1px solid var(--theme-border-strong); background: var(--theme-surface-translucent); }
-.mobile-detail-actionbar > button { display: flex; min-height: 48px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--theme-border-strong); border-radius: 7px; background: var(--theme-control-hover); color: var(--theme-text-soft); font-size: calc(13px * var(--ui-font-scale, 1)); }
+.mobile-detail-actionbar > button { display: flex; min-height: 48px; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--theme-border-strong); border-radius: var(--radius-xl) background: var(--theme-control-hover); color: var(--theme-text-soft); font-size: calc(13px * var(--ui-font-scale, 1)); }
 .mobile-detail-actionbar > button:only-child { grid-column: 1 / -1; }
 .mobile-detail-actionbar > button.primary { border-color: var(--theme-accent-border); background: var(--theme-accent-soft); color: var(--theme-text); }
 .mobile-detail-actionbar > button.warning { border-color: var(--theme-warning-border); color: var(--yellow); }
@@ -157,24 +157,24 @@
 
 /* Technology list -> detail. */
 .game-shell[data-mobile-shell="true"] .mobile-technology { display: block !important; overflow: hidden; }
-.mobile-research-status { display: grid; gap: 6px; margin: 10px; padding: 10px; border: 1px solid var(--theme-border-strong); border-radius: 7px; background: var(--theme-surface); }
+.mobile-research-status { display: grid; gap: 6px; margin: 10px; padding: 10px; border: 1px solid var(--theme-border-strong); border-radius: var(--radius-xl) background: var(--theme-surface); }
 .mobile-research-status > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; }
 .mobile-research-status > div span { grid-column: 1; color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .mobile-research-status > div strong { grid-column: 1; font-size: calc(15px * var(--ui-font-scale, 1)); }
 .mobile-research-status > div em { grid-column: 2; grid-row: 1 / span 2; align-self: center; color: var(--cyan); font-size: calc(18px * var(--ui-font-scale, 1)); font-style: normal; }
-.mobile-research-status > i { height: 6px; overflow: hidden; border-radius: 3px; background: var(--theme-border-subtle); }
+.mobile-research-status > i { height: 6px; overflow: hidden; border-radius: var(--radius-xs) background: var(--theme-border-subtle); }
 .mobile-research-status > i b { display: block; height: 100%; background: var(--green); }
 .mobile-research-status > footer { display: flex; min-height: 24px; align-items: center; justify-content: space-between; color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .mobile-research-status > footer strong { color: var(--yellow); }
 
 .mobile-tech-filter { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; min-height: 54px; padding: 5px 10px; border-block: 1px solid var(--theme-border); }
-.mobile-tech-filter button { min-height: 44px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-surface); color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
+.mobile-tech-filter button { min-height: 44px; border: 1px solid var(--theme-border); border-radius: var(--radius-lg) background: var(--theme-surface); color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .mobile-tech-filter button.active { border-color: var(--theme-accent-border); background: var(--theme-accent-soft); color: var(--cyan); }
 .mobile-tech-list { padding: 5px 10px 22px; }
 .mobile-tech-list > section > header { min-height: 38px; padding: 12px 4px 6px; color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .mobile-tech-list > section > div { border-top: 1px solid var(--theme-border); }
 .mobile-tech-list button { display: grid; width: 100%; min-height: 78px; grid-template-columns: 42px minmax(0, 1fr) auto 24px; align-items: center; gap: 8px; padding: 8px 7px; border-bottom: 1px solid var(--theme-border-subtle); background: var(--theme-surface); color: var(--theme-text-soft); text-align: left; }
-.mobile-tech-list button > i { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--theme-border-strong); border-radius: 6px; color: var(--theme-text-muted); }
+.mobile-tech-list button > i { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--theme-border-strong); border-radius: var(--radius-lg) color: var(--theme-text-muted); }
 .mobile-tech-list button > span { display: grid; gap: 3px; }
 .mobile-tech-list button > span strong { font-size: calc(14px * var(--ui-font-scale, 1)); }
 .mobile-tech-list button > span small { overflow: hidden; color: var(--theme-text-muted); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
@@ -183,20 +183,20 @@
 .mobile-tech-list button.complete > i { border-color: var(--theme-border-strong); color: var(--green); }
 .mobile-tech-list button.active { background: var(--theme-accent-soft); box-shadow: inset 3px 0 0 var(--cyan); }
 .mobile-tech-list button.paused > i { color: var(--yellow); }
-.mobile-infinite-research-list button > i { font-size: calc(12px * var(--ui-font-scale, 1)); font-style: normal; font-weight: 800; }
+.mobile-infinite-research-list button > i { font-size: calc(12px * var(--ui-font-scale, 1)); font-style: normal; font-weight: var(--weight-heavy) }
 .mobile-infinite-research-list button > span em { color: var(--coral); white-space: normal; }
 .mobile-infinite-research-detail .mobile-tech-unlocks > span { grid-template-columns: 24px minmax(0, 1fr); }
 .mobile-infinite-research-detail .mobile-tech-unlocks strong { font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.45; overflow-wrap: anywhere; }
 .mobile-workspace-empty { display: grid; min-height: 180px; place-items: center; align-content: center; gap: 9px; padding: 18px; color: var(--theme-text-muted); text-align: center; }
-.mobile-workspace-empty > span { color: var(--theme-text-soft); font-size: calc(14px * var(--ui-font-scale, 1)); font-weight: 700; }
+.mobile-workspace-empty > span { color: var(--theme-text-soft); font-size: calc(14px * var(--ui-font-scale, 1)); font-weight: var(--weight-bold) }
 .mobile-workspace-empty > small { max-width: 320px; font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.45; overflow-wrap: anywhere; }
-.mobile-workspace-empty > button { min-width: 132px; min-height: 48px; padding: 0 14px; border: 1px solid var(--theme-accent-border); border-radius: 6px; background: var(--theme-accent-soft); color: var(--cyan); font-size: calc(12px * var(--ui-font-scale, 1)); }
+.mobile-workspace-empty > button { min-width: 132px; min-height: 48px; padding: 0 14px; border: 1px solid var(--theme-accent-border); border-radius: var(--radius-lg) background: var(--theme-accent-soft); color: var(--cyan); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .mobile-tech-cost-list,
 .mobile-tech-prerequisites,
 .mobile-tech-unlocks { display: grid; gap: 6px; }
 .mobile-tech-cost-list > span,
 .mobile-tech-prerequisites > span,
-.mobile-tech-unlocks > span { display: grid; min-height: 48px; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-surface); }
+.mobile-tech-unlocks > span { display: grid; min-height: 48px; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid var(--theme-border); border-radius: var(--radius-lg) background: var(--theme-surface); }
 .mobile-tech-cost-list .item-glyph { width: 28px; height: 28px; }
 .mobile-tech-cost-list em { font-size: calc(12px * var(--ui-font-scale, 1)); font-style: normal; }
 .mobile-tech-cost-list strong { color: var(--yellow); font-size: calc(12px * var(--ui-font-scale, 1)); }
@@ -239,12 +239,12 @@
 /* Statistics and production management use one outer scroll container. */
 .game-shell[data-mobile-shell="true"] .mobile-statistics { display: block !important; overflow: hidden auto !important; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; padding: 8px; }
-.game-shell[data-mobile-shell="true"] .mobile-statistics-overview > div { display: grid; min-height: 58px; align-content: center; gap: 3px; padding: 6px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-surface); }
+.game-shell[data-mobile-shell="true"] .mobile-statistics-overview > div { display: grid; min-height: 58px; align-content: center; gap: 3px; padding: 6px; border: 1px solid var(--theme-border); border-radius: var(--radius-lg) background: var(--theme-surface); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics-overview span { color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics-overview strong { font-size: calc(13px * var(--ui-font-scale, 1)); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics-overview .warning strong { color: var(--coral); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-tabs button strong { font-size: calc(12px * var(--ui-font-scale, 1)) !important; }
-.game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-tabs { position: sticky; z-index: 12; top: 0; display: flex; min-height: 52px; gap: 4px; padding: 4px 6px; overflow: auto hidden; border-bottom: 1px solid var(--theme-border); background: var(--theme-canvas); scrollbar-width: thin; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 10px), transparent); mask-image: linear-gradient(90deg, transparent, #000 10px, #000 calc(100% - 10px), transparent); }
+.game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-tabs { position: sticky; z-index: 12; top: 0; display: flex; min-height: 52px; gap: 4px; padding: 4px 6px; overflow: auto hidden; border-bottom: 1px solid var(--theme-border); background: var(--theme-canvas); scrollbar-width: thin; -webkit-mask-image: linear-gradient(90deg, transparent, var(--tone-black) 10px, var(--tone-black) calc(100% - 10px), transparent); mask-image: linear-gradient(90deg, transparent, var(--tone-black) 10px, var(--tone-black) calc(100% - 10px), transparent); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-tabs button { display: flex; min-width: 88px; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 3px; padding: 2px 8px; overflow: visible; font-size: calc(12px * var(--ui-font-scale, 1)); white-space: nowrap; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-tabs button > svg { display: none; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics :is(.statistics-content, .production-management, .network-overview) { height: auto; min-height: 0; overflow: visible !important; }
@@ -265,7 +265,7 @@
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-table { display: block; overflow: visible; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-table > header { display: none; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-table > div { display: grid; gap: 7px; padding: 8px; }
-.game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-row { display: grid; min-height: 78px; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 9px; border: 1px solid var(--theme-border); border-radius: 7px; background: var(--theme-surface); }
+.game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-row { display: grid; min-height: 78px; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 9px; border: 1px solid var(--theme-border); border-radius: var(--radius-xl) background: var(--theme-surface); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-row > span { display: block; font-size: calc(12px * var(--ui-font-scale, 1)); text-align: right; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-row > span:nth-child(2)::before { content: "生产 "; color: var(--theme-text-muted); }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .statistics-row > span:nth-child(3)::before { content: "消耗 "; color: var(--theme-text-muted); }
@@ -283,7 +283,7 @@
 .game-shell[data-mobile-shell="true"] .mobile-statistics :is(.production-management-toolbar, .planning-create-bar, .planning-layout, .network-workspace-layout, .galactic-panels) { display: grid; grid-template-columns: 1fr; height: auto; overflow: visible; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics :is(.production-management-ledger, .network-ledger, .planning-detail, .consumer-ledger, .power-grid-ledger) { overflow: visible; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics :is(.production-management-ledger, .network-ledger, .consumer-ledger, .power-grid-ledger) > header { display: none; }
-.game-shell[data-mobile-shell="true"] .mobile-statistics :is(.production-management-row, .network-row, .consumer-row, .power-grid-row) { display: grid; grid-template-columns: 1fr; gap: 7px; min-height: 72px; padding: 9px; border: 1px solid var(--theme-border); border-radius: 7px; }
+.game-shell[data-mobile-shell="true"] .mobile-statistics :is(.production-management-row, .network-row, .consumer-row, .power-grid-row) { display: grid; grid-template-columns: 1fr; gap: 7px; min-height: 72px; padding: 9px; border: 1px solid var(--theme-border); border-radius: var(--radius-xl) }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .planning-requirements > header { display: none; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .planning-requirement { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 9px; }
 .game-shell[data-mobile-shell="true"] .mobile-statistics .planning-requirement-item { grid-column: 1 / -1; padding-left: 0 !important; }
@@ -336,21 +336,21 @@
 .mobile-planet-detail { padding-bottom: 10px; }
 .mobile-system-planets { border-top: 1px solid var(--theme-border); }
 .mobile-planet-environment { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 10px; }
-.mobile-planet-environment > div { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 5px; padding: 7px 9px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-surface); }
+.mobile-planet-environment > div { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 5px; padding: 7px 9px; border: 1px solid var(--theme-border); border-radius: var(--radius-lg) background: var(--theme-surface); }
 .mobile-planet-environment span { color: var(--theme-text-muted); font-size: calc(12px * var(--ui-font-scale, 1)); }
 .mobile-planet-environment strong { font-size: calc(12px * var(--ui-font-scale, 1)); }
-.mobile-colony-requirements { margin: 10px; padding: 10px; border: 1px solid var(--theme-danger-border); border-radius: 7px; background: var(--theme-warning-bg); }
+.mobile-colony-requirements { margin: 10px; padding: 10px; border: 1px solid var(--theme-danger-border); border-radius: var(--radius-xl) background: var(--theme-warning-bg); }
 .mobile-colony-requirements > header { display: grid; gap: 3px; }
 .mobile-colony-requirements > header strong { color: var(--coral); font-size: calc(14px * var(--ui-font-scale, 1)); }
 .mobile-colony-requirements > header small { color: var(--theme-text-muted); }
 .mobile-colony-requirements > p { color: var(--coral); font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.5; }
 .mobile-colony-requirements > div { display: grid; gap: 5px; }
-.mobile-colony-requirements > div > span { display: grid; min-height: 46px; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 5px 7px; border: 1px solid var(--theme-danger-bg); border-radius: 6px; }
+.mobile-colony-requirements > div > span { display: grid; min-height: 46px; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 5px 7px; border: 1px solid var(--theme-danger-bg); border-radius: var(--radius-lg) }
 .mobile-colony-requirements > div > span.ready { border-color: var(--theme-accent-border); color: var(--green); }
 .mobile-colony-requirements .item-glyph { width: 27px; height: 27px; }
 .mobile-colony-requirements em { display: grid; min-width: 0; font-size: calc(12px * var(--ui-font-scale, 1)); font-style: normal; }
 .mobile-colony-requirements em small { overflow: hidden; color: var(--theme-text-muted); font-size: calc(11px * var(--ui-font-scale, 1)); text-overflow: ellipsis; white-space: nowrap; }
-.mobile-colony-requirements > button { width: 100%; min-height: 48px; margin-top: 8px; border: 1px solid var(--theme-accent-border); border-radius: 6px; background: var(--theme-accent-soft); color: var(--theme-text-soft); }
+.mobile-colony-requirements > button { width: 100%; min-height: 48px; margin-top: 8px; border: 1px solid var(--theme-accent-border); border-radius: var(--radius-lg) background: var(--theme-accent-soft); color: var(--theme-text-soft); }
 .game-shell[data-mobile-shell="true"] .mobile-star-map .stellar-industry { height: auto; overflow: visible; padding: 8px; }
 .game-shell[data-mobile-shell="true"] .mobile-star-map :is(.stellar-system-overview, .interplanetary-diagnostics, .stellar-route-console) { overflow: visible; }
 .game-shell[data-mobile-shell="true"] .mobile-star-map :is(.stellar-system-row, .stellar-route-row, .interplanetary-diagnostic) { min-width: 0; }
@@ -369,7 +369,7 @@
 .game-shell[data-mobile-shell="true"] .mobile-blueprints .blueprint-library-shell { display: block; overflow: visible; }
 .game-shell[data-mobile-shell="true"] .mobile-blueprints .blueprint-import-file { display: none; }
 .game-shell[data-mobile-shell="true"] .mobile-blueprints .mobile-blueprint-library-actions { position: sticky; z-index: 11; top: 48px; display: flex; justify-content: flex-end; padding: 7px 9px; border-bottom: 1px solid var(--theme-border); background: var(--theme-canvas); }
-.game-shell[data-mobile-shell="true"] .mobile-blueprints .mobile-blueprint-library-actions > button { display: inline-flex; min-width: 132px; min-height: 48px; align-items: center; justify-content: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--theme-accent-border); border-radius: 6px; background: var(--theme-accent-soft); color: var(--cyan); cursor: pointer; }
+.game-shell[data-mobile-shell="true"] .mobile-blueprints .mobile-blueprint-library-actions > button { display: inline-flex; min-width: 132px; min-height: 48px; align-items: center; justify-content: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--theme-accent-border); border-radius: var(--radius-lg) background: var(--theme-accent-soft); color: var(--cyan); cursor: pointer; }
 .game-shell[data-mobile-shell="true"] .mobile-blueprints .blueprint-import-panel { position: static; width: auto; margin: 8px; }
 .game-shell[data-mobile-shell="true"] .mobile-blueprints .blueprint-library { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 9px; overflow: visible; }
 .game-shell[data-mobile-shell="true"] .mobile-blueprints .blueprint-card { min-width: 0; }
@@ -449,7 +449,7 @@
 .game-shell[data-mobile-shell="true"] .galaxy-leaderboard { overflow: visible; }
 .game-shell[data-mobile-shell="true"] .galaxy-leaderboard > header { display: none; }
 .game-shell[data-mobile-shell="true"] .galaxy-leaderboard-rows { display: grid; gap: 7px; padding: 8px; }
-.game-shell[data-mobile-shell="true"] .galaxy-leaderboard-rows > article { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 7px; min-height: 92px; padding: 8px; border: 1px solid var(--theme-border); border-radius: 7px; }
+.game-shell[data-mobile-shell="true"] .galaxy-leaderboard-rows > article { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 7px; min-height: 92px; padding: 8px; border: 1px solid var(--theme-border); border-radius: var(--radius-xl) }
 .game-shell[data-mobile-shell="true"] .galaxy-leaderboard-rows > article > :not(.galaxy-rank-number):not(.galaxy-rank-identity) { grid-column: 1 / -1; }
 .game-shell[data-mobile-shell="true"] .galaxy-upload-panel { width: auto; margin: 8px; }
 .game-shell[data-mobile-shell="true"] .galaxy-account-list { width: auto; max-height: none; overflow: visible; }

@@ -217,7 +217,7 @@ test("buffer controls fit desktop and both mobile settings from 80 to 200 percen
     const fontScale = operations.getByLabel("字体大小");
     const sections = operations.locator(".settings-buffer-limit");
     for (const scale of [80, 100, 125, 150, 200] as const) {
-      await selectSettingsCategory(operations, "画面与主题", "visual");
+      await selectSettingsCategory(operations, "画面与显示", "visual");
       await fontScale.getByRole("button", { name: `${scale}%` }).click();
       await selectSettingsCategory(operations, "终局性能", "performance");
       await expect(sections).toHaveCount(4);

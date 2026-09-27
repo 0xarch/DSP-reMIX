@@ -72,6 +72,7 @@ import { MobilePlacementBar, MobileSelectionContextBar, type MobileCanvasMode } 
 import type { OperationsTab } from "./components/OperationsWorkspace";
 import type { StatisticsTab } from "./components/StatisticsWorkspace";
 import type { StationTab } from "./components/OrbitalStationWorkspace";
+import { syncDynamicGalaxyCatalog } from "./game/content";
 import { ITEMS, RECIPES, getBeltConstructionId, getBeltTiers, getBuilding, getBuildingUpgradeTarget, getConstructionDefinition, getExtractorBuildingId, getPlanet, getStarSystem, getTechnology } from "./game/content";
 import { EMPTY_FACTORY_ALERT_PROJECTION, isCriticalFactoryAlertCode, materializeFactoryAlerts, type FactoryAlert, type FactoryAlertProjection } from "./game/alerts";
 import { getSaveSummaryRefreshIntervalMs, shouldRefreshSaveSummaries } from "./game/saveRefreshPolicy";
@@ -287,7 +288,8 @@ import { formatQuantityCompact } from "./game/quantityFormat";
 import { readOfflineApproximationEnabled } from "./game/offlineApproximation";
 import { getAchievement, getNewAchievementIds, unlockAchievements } from "./game/progression";
 import { deliverSystemSpaceStationMaterial, getInterstellarStationUpgradeStatus, requestStationOperationMode, setElevatorOutputItem, setSystemSpaceStationModuleCount, startSystemSpaceStationConstruction, upgradeAllInterstellarStationsToMk2, upgradeInterstellarStationToMk2 } from "./game/systemSpaceStation";
-import { getDifficultyDefinition } from "./game/difficulty";
+import { getDifficultyDefinition, resolveFiniteResourceMultiplier } from "./game/difficulty";
+import { installSaveDebugConsole } from "./game/saveDebugConsole";
 import { analyzeBeltNetwork, analyzeEntityLineTrace, diagnoseBelt, predictBeltConnection } from "./game/network";
 import { buildFactoryEdgeRouteCenters, reconcileFactoryCanvasTopology, type FactoryCanvasTopology } from "./game/canvasTopology";
 import type { CanvasLineEndpoint } from "./game/canvasLineBatch";
@@ -871,6 +873,23 @@ import {
 } from "./game/webFactoryReadModelAdapter";
 import { createNativeCoreRevisionProof } from "./game/nativeCoreProof";
 import { readWindowsNativeCoreBetaEnabled, writeWindowsNativeCoreBetaEnabled } from "./game/nativeCoreBetaSettings";
+// 存档与检查点同步工具（自本文件拆出，见 src/game/sync/）。
+import {
+  appendSimulationCheckpointChunk,
+  applyAuthoritativeCheckpointOverlay,
+  finishSimulationCheckpointChunks,
+  sameDurableRecoveryBaseIdentity,
+  serializedPayloadBytes,
+  type SimulationCheckpointAccumulator,
+} from "./game/sync/simulationCheckpointSync";
+import {
+  isLargeRuntimeState,
+  lifecycleSealedSaveResult,
+  readVerifiedPrimaryByteLength,
+  type RuntimePersistenceKind,
+  type RuntimePersistencePhase,
+  type RuntimePersistenceProgress,
+} from "./game/sync/runtimeSaveUtilities";
 import type {
   AuthoritativeSaveCheckpointOverlay,
   AuthoritativeSaveExpectedStateIdentity,
@@ -894,7 +913,6 @@ import { useCoarsePointer } from "./hooks/useCoarsePointer";
 import { useCompactLayout } from "./hooks/useCompactLayout";
 import { useLongPress } from "./hooks/useLongPress";
 import { useLowEndMobile } from "./hooks/useLowEndMobile";
-import { useResolvedTheme } from "./hooks/useResolvedTheme";
 import { useObservedBeltFlowGame } from "./hooks/useObservedBeltFlowGame";
 import { useMobileNavigation, type MobileWorkspaceId } from "./hooks/useMobileNavigation";
 import { useMobileUiPreference } from "./hooks/useMobileUiPreference";
@@ -957,7 +975,7 @@ import {
   setCanvasPointerEdgeVelocity,
   stopCanvasPointerMotion as stopCanvasPointerMotionSession,
 } from "./hooks/canvasPointerMotion";
-import { readBlueprintAllowOverlapPreference, readCanvasDetailPreference, readCanvasInteractionDetailPreference, readCanvasOverlapPreference, readConnectExpandAllPreference, readConnectionHitArea, readConnectionPointSize, readDefaultBeltLanesPreference, readFactoryAlertsPreference, readFontScalePreference, readFullRealtimeSimulationPreference, readLargeSaveAutosaveThrottlePreference, readMemoryAutoPauseEnabledPreference, readMemoryAutoPauseThresholdPreference, readShowItemHoverPreference, readShowRunLogPreference, readThemePreference, readAllowEditsDuringSavePreference, writeBlueprintAllowOverlapPreference, writeCanvasDetailPreference, writeCanvasInteractionDetailPreference, writeCanvasOverlapPreference, writeConnectExpandAllPreference, writeConnectionHitArea, writeConnectionPointSize, writeDefaultBeltLanesPreference, writeFactoryAlertsPreference, writeFontScalePreference, writeFullRealtimeSimulationPreference, writeLargeSaveAutosaveThrottlePreference, writeMemoryAutoPauseEnabledPreference, writeMemoryAutoPauseThresholdPreference, writeShowItemHoverPreference, writeShowRunLogPreference, writeThemePreference, writeAllowEditsDuringSavePreference, type ConnectionHitArea, type ConnectionPointSize } from "./game/uiPreferences";
+import { readBlueprintAllowOverlapPreference, readCanvasDetailPreference, readCanvasInteractionDetailPreference, readCanvasOverlapPreference, readConnectExpandAllPreference, readConnectionHitArea, readConnectionPointSize, readDefaultBeltLanesPreference, readFactoryAlertsPreference, readFontScalePreference, readFullRealtimeSimulationPreference, readLargeSaveAutosaveThrottlePreference, readMemoryAutoPauseEnabledPreference, readMemoryAutoPauseThresholdPreference, readShowItemHoverPreference, readShowRunLogPreference, readAllowEditsDuringSavePreference, writeBlueprintAllowOverlapPreference, writeCanvasDetailPreference, writeCanvasInteractionDetailPreference, writeCanvasOverlapPreference, writeConnectExpandAllPreference, writeConnectionHitArea, writeConnectionPointSize, writeDefaultBeltLanesPreference, writeFactoryAlertsPreference, writeFontScalePreference, writeFullRealtimeSimulationPreference, writeLargeSaveAutosaveThrottlePreference, writeMemoryAutoPauseEnabledPreference, writeMemoryAutoPauseThresholdPreference, writeShowItemHoverPreference, writeShowRunLogPreference, writeAllowEditsDuringSavePreference, type ConnectionHitArea, type ConnectionPointSize } from "./game/uiPreferences";
 
 type InspectorTab = "inspect" | "fabricate";
 
@@ -1132,13 +1150,6 @@ const StableResourceRail = memo(ResourceRail, comparePanelProps);
 const StablePlanetNavigator = memo(PlanetNavigator, comparePanelProps);
 const StableInspectorPanel = memo(InspectorPanel, comparePanelProps);
 const StableConstructionDock = memo(ConstructionDock, comparePanelProps);
-
-const LARGE_RUNTIME_ENTITY_THRESHOLD = 10_000;
-const LARGE_RUNTIME_BELT_THRESHOLD = 20_000;
-
-function isLargeRuntimeState(state: GameState): boolean {
-  return state.entities.length >= LARGE_RUNTIME_ENTITY_THRESHOLD || state.belts.length >= LARGE_RUNTIME_BELT_THRESHOLD;
-}
 
 /**
  * The large-save acceptance gate enables an in-memory timing sink before the
@@ -1534,16 +1545,6 @@ function pureIdleProgressLabel(progress: PureIdleMacroProgress): string {
   return "正在执行宏观结算";
 }
 
-function sameDurableRecoveryBaseIdentity(
-  left: SimulationRuntimeDurableAppHead["baseIdentity"],
-  right: SimulationRuntimeDurableAppHead["baseIdentity"],
-): boolean {
-  return left.mode === right.mode &&
-    left.savedAt === right.savedAt &&
-    left.checksum === right.checksum &&
-    left.revision === right.revision;
-}
-
 function isCountedPureIdleWorkerFailure(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "AbortError") return false;
   return !(error instanceof PureIdleMacroClientError && error.code === "closed");
@@ -1838,15 +1839,6 @@ function visualEntitySignature(entity: FactoryEntity): string {
   return `${scalars}|inputs=${mapToken(entity.inputs)}|outputs=${mapToken(entity.outputs)}|slots=${slots}|nested=${nested}`;
 }
 
-function serializedPayloadBytes(value: unknown): number {
-  try {
-    const raw = JSON.stringify(value);
-    return typeof TextEncoder === "undefined" ? raw.length : new TextEncoder().encode(raw).byteLength;
-  } catch {
-    return 0;
-  }
-}
-
 interface SimulationReplayOperation {
   command: SimulationCommandPatch | null;
   simulationSeconds: number;
@@ -1882,116 +1874,9 @@ interface DeferredDurableUiSubmission {
   onFailure: (error: unknown) => void;
 }
 
-interface SimulationCheckpointAccumulator {
-  base: Omit<GameState, "entities" | "belts"> | null;
-  entityCount: number;
-  beltCount: number;
-  entities: GameState["entities"];
-  belts: GameState["belts"];
-}
-
 interface SimulationAuthorityReplacementResult {
   state: GameState;
   stateRevision: number;
-}
-
-function appendSimulationCheckpointChunk(
-  current: SimulationCheckpointAccumulator | undefined,
-  chunk: SimulationCheckpointStateChunk,
-): SimulationCheckpointAccumulator {
-  const accumulator = current ?? { base: null, entityCount: -1, beltCount: -1, entities: [], belts: [] };
-  if (chunk.kind === "base") {
-    if (accumulator.base || accumulator.entities.length > 0 || accumulator.belts.length > 0 ||
-      !Number.isSafeInteger(chunk.entityCount) || chunk.entityCount < 0 ||
-      !Number.isSafeInteger(chunk.beltCount) || chunk.beltCount < 0) {
-      throw new Error("模拟检查点 base 分块顺序无效");
-    }
-    accumulator.base = chunk.state;
-    accumulator.entityCount = chunk.entityCount;
-    accumulator.beltCount = chunk.beltCount;
-    return accumulator;
-  }
-  if (!accumulator.base) throw new Error("模拟检查点数据分块早于 base");
-  if (chunk.kind === "entities") {
-    if (chunk.offset !== accumulator.entities.length || accumulator.entities.length + chunk.values.length > accumulator.entityCount) {
-      throw new Error("模拟检查点 entity 分块不连续");
-    }
-    accumulator.entities.push(...chunk.values);
-    return accumulator;
-  }
-  if (chunk.offset !== accumulator.belts.length || accumulator.belts.length + chunk.values.length > accumulator.beltCount) {
-    throw new Error("模拟检查点 belt 分块不连续");
-  }
-  accumulator.belts.push(...chunk.values);
-  return accumulator;
-}
-
-function finishSimulationCheckpointChunks(accumulator: SimulationCheckpointAccumulator | undefined): GameState | undefined {
-  if (!accumulator) return undefined;
-  if (!accumulator.base || accumulator.entities.length !== accumulator.entityCount || accumulator.belts.length !== accumulator.beltCount) {
-    throw new Error("模拟检查点分块缺失");
-  }
-  return { ...accumulator.base, entities: accumulator.entities, belts: accumulator.belts };
-}
-
-type RuntimePersistenceKind = "autosave" | "manual" | "pure-idle-stop" | "return" | "lifecycle" | "other";
-type RuntimePersistencePhase = "checkpoint" | "serialize-write-readback" | "complete" | "failed";
-
-const LIFECYCLE_SEALED_SAVE_MESSAGE = "页面正在退出，已保留当前 durable recovery 供下次精确恢复";
-
-function lifecycleSealedSaveResult(): SaveGameResult {
-  return { success: false, message: LIFECYCLE_SEALED_SAVE_MESSAGE, code: "conflict" };
-}
-
-function readVerifiedPrimaryByteLength(mode: GameState["mode"]): number | null {
-  try {
-    const catalog = listLocalSaveCatalogs().find((entry) =>
-      entry.kind === "primary" && entry.mode === mode && entry.slot === "main" && entry.integrity === "valid");
-    return catalog && Number.isFinite(catalog.byteLength) && catalog.byteLength > 0 ? catalog.byteLength : null;
-  } catch {
-    return null;
-  }
-}
-
-function applyAuthoritativeCheckpointOverlay(
-  state: GameState,
-  overlay: AuthoritativeSaveCheckpointOverlay | undefined,
-): GameState {
-  if (!overlay) return state;
-  let next = state;
-  if (overlay.planetViewports && overlay.planetViewports.length > 0) {
-    let planetViewports = state.planetViewports;
-    for (const entry of overlay.planetViewports) {
-      const previous = planetViewports[entry.planetId];
-      const viewport = entry.viewport;
-      if (previous?.x === viewport.x && previous.y === viewport.y && previous.zoom === viewport.zoom) continue;
-      if (planetViewports === state.planetViewports) planetViewports = { ...state.planetViewports };
-      planetViewports[entry.planetId] = viewport;
-    }
-    if (planetViewports !== state.planetViewports) next = { ...next, planetViewports };
-  }
-  if (overlay.timeWarp && (
-    next.timeWarp.pendingSimulationSeconds !== overlay.timeWarp.pendingSimulationSeconds ||
-    next.timeWarp.pendingWallSeconds !== overlay.timeWarp.pendingWallSeconds
-  )) {
-    next = {
-      ...next,
-      timeWarp: {
-        ...next.timeWarp,
-        pendingSimulationSeconds: overlay.timeWarp.pendingSimulationSeconds,
-        pendingWallSeconds: overlay.timeWarp.pendingWallSeconds,
-      },
-    };
-  }
-  return next;
-}
-
-interface RuntimePersistenceProgress {
-  id: number;
-  kind: RuntimePersistenceKind;
-  phase: RuntimePersistencePhase;
-  startedAt: number;
-  message: string;
 }
 
 function minerPlacementHint(buildingId: BuildingId): string {
@@ -2043,7 +1928,6 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
     refresh();
     return subscribeLocalSaveStorageStatus(refresh);
   }, [game.mode]);
-  const [themeMode, setThemeMode] = useState(() => readThemePreference() ?? loaded.state.settings.theme);
   const [nativeFontScale, setNativeFontScale] = useState<FontScale>(() => readFontScalePreference() ?? loaded.state.settings.fontScale);
   const [connectionPointSize, setConnectionPointSize] = useState<ConnectionPointSize>(readConnectionPointSize);
   useEffect(() => { writeConnectionPointSize(connectionPointSize); }, [connectionPointSize]);
@@ -2075,7 +1959,6 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
   const [showRunLog, setShowRunLog] = useState(readShowRunLogPreference);
   const [showItemHover, setShowItemHover] = useState(readShowItemHoverPreference);
   useEffect(() => { writeShowItemHoverPreference(showItemHover); }, [showItemHover]);
-  const resolvedTheme = useResolvedTheme(themeMode);
   const [canvasRenderSnapshot, setCanvasRenderSnapshot] = useState<CanvasRenderSnapshot>(() => createCanvasRenderSnapshot(loaded.state));
   const canvasGameSnapshot = canvasRenderSnapshot.game;
   const canvasGame = useObservedBeltFlowGame(canvasGameSnapshot, !canvasGameSnapshot.paused);
@@ -2380,6 +2263,10 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
   const [interactionBursts, setInteractionBursts] = useState<InteractionBurst[]>([]);
   const [ctrlHeld, setCtrlHeld] = useState(false);
   const gameRef = useRef(game);
+  // 控制台调试入口：__DSP_DUMP_SAVE__()（用法见 AGENTS.md）。
+  useEffect(() => installSaveDebugConsole(() => gameRef.current), []);
+  // 程序化星系/行星的内容目录注册（durable recovery 等路径不经过 loadInspection）。
+  useEffect(() => { syncDynamicGalaxyCatalog(gameRef.current.galaxy); }, []);
   // React bails out when setGame receives the already committed object. Keep
   // that identity explicit so the one-in-flight publisher does not wait for
   // an effect that a no-op state update can never trigger.
@@ -5434,6 +5321,31 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
   const lowEndMobile = useLowEndMobile();
   const nextMobileShell = mobileUiPreference === "next";
   const canvasMinimumZoom = nextMobileShell && effectiveUiFontScale >= 2 ? 0.35 : 0.25;
+  // 劫持浏览器原生 Ctrl+滚轮缩放（passive:false）：滚轮落在 2D 网格上时改为
+  // 以光标为锚点缩放画布；落在四周界面或工作区浮层上时不拦截，交还浏览器。
+  useEffect(() => {
+    const handleCanvasZoomWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest(".factory-canvas")) return;
+      event.preventDefault();
+      const current = getViewport();
+      const nextZoom = Math.max(canvasMinimumZoom, Math.min(1.8, current.zoom * Math.pow(1.0015, -event.deltaY)));
+      if (!Number.isFinite(nextZoom) || Math.abs(nextZoom - current.zoom) < 1e-4) return;
+      const canvasRect = target.closest<HTMLElement>(".factory-canvas")!.getBoundingClientRect();
+      const anchorX = event.clientX - canvasRect.left;
+      const anchorY = event.clientY - canvasRect.top;
+      const scale = nextZoom / current.zoom;
+      setViewport(
+        { x: anchorX - (anchorX - current.x) * scale, y: anchorY - (anchorY - current.y) * scale, zoom: nextZoom },
+        { duration: 0 },
+      );
+      setViewportZoom(nextZoom);
+    };
+    window.addEventListener("wheel", handleCanvasZoomWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleCanvasZoomWheel);
+  }, [canvasMinimumZoom, getViewport, setViewport]);
+
   const resolvedProductionRefreshIntervalMs = resolveProductionRefreshInterval(productionRefreshPreference, automaticRefreshState);
   // Automatic mode keeps work-cycle animation smooth through the visual clock,
   // so a very large authority state does not need to reconcile its 27k/49k
@@ -14221,7 +14133,7 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
       planetViewports: { ...nextPlanetState.planetViewports, [previousPlanetId]: leavingViewport },
     };
     if (!commitGame(() => next)) return false;
-    const destinationViewport = next.planetViewports[planetId] ?? { x: 510, y: 250, zoom: 0.84 };
+    const destinationViewport = (next.planetViewports as Record<string, CanvasViewport | undefined>)[planetId] ?? { x: 510, y: 250, zoom: 0.84 };
     const destinationName = getPlanetDisplayName(next, planetId);
     const notice = cargo
       ? `${cargo.itemId === "titanium_ore" || cargo.itemId === "titanium_ingot" ? "托钛天王" : "手提星际运输"}：${ITEMS[cargo.itemId].name} ×${cargo.amount} 已抵达${destinationName}`
@@ -14294,17 +14206,9 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
   const updateSettings = useCallback((settings: Partial<GameSettings>) => {
     if (rejectLegacyFactoryInteractionWhileNative("旧版游戏规则设置")) return;
     commitGame((current) => ({ ...current, settings: { ...current.settings, ...settings } }));
-    if (settings.theme) {
-      setThemeMode(settings.theme);
-      writeThemePreference(settings.theme);
-    }
     if (settings.soundEnabled === true) playTone("confirm", true);
   }, [commitGame, playTone, rejectLegacyFactoryInteractionWhileNative]);
 
-  const updateNativeThemePreference = useCallback((theme: "dark" | "light" | "system") => {
-    setThemeMode(theme);
-    writeThemePreference(theme);
-  }, []);
   const updateNativeFontScalePreference = useCallback((scale: FontScale) => {
     setNativeFontScale(scale);
     writeFontScalePreference(scale);
@@ -16699,6 +16603,7 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
       paused: nativePlayerAuthorityOwnsRuntime ? factoryRunStatusReadModel.paused : canvasGame.paused,
       powerDemandMultiplier: getDifficultyDefinition(canvasGame.settings.difficulty).powerDemandMultiplier,
       solarGenerationMultiplier: nativePlayerAuthorityOwnsRuntime ? 0 : getPlanetSolarPowerMultiplier(canvasGame, factoryCanvasPlanetId),
+      powerGenerationMultiplier: resolveFiniteResourceMultiplier(canvasGame.settings?.powerGenerationMultiplier),
       windGenerationMultiplier: planetProfile?.windMultiplier ?? 0,
       geothermalGenerationMultiplier: planetProfile?.geothermalMultiplier ?? 0,
       activeLogisticsEntityIds: beltNodeIndex.activeEntityIds,
@@ -21810,7 +21715,6 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
     coarsePointer,
     game.settings.reducedMotion,
     game.settings.allowDoubleClickZoom,
-    resolvedTheme,
     viewportZoom,
     beltTierMode,
     beltTier,
@@ -22788,7 +22692,7 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
             onlyRenderVisibleElements={flowElementVirtualizationActive}
             proOptions={{ hideAttribution: true }}
           >
-            <Background variant={BackgroundVariant.Dots} gap={20} size={1.1} color={resolvedTheme === "light" ? "#b7c8bf" : "#3c4743"} />
+            <Background variant={BackgroundVariant.Dots} gap={20} size={1.1} color="#3c4743" />
             {canvasBatchRendererEnabled ? <CanvasBeltLayer
               ref={canvasBeltLayerRef}
               belts={canvasTopology.belts}
@@ -22846,7 +22750,6 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
               viewport={minimapViewport}
               canvasWidth={canvasViewportSize.width}
               canvasHeight={canvasViewportSize.height}
-              lightTheme={resolvedTheme === "light"}
               onCenter={centerCanvasFromMinimap}
               onZoom={zoomCanvasFromMinimap}
               onUnavailable={handleMinimapCanvasUnavailable}
@@ -22855,7 +22758,7 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
               zoomable
               onClick={(_event, position) => centerCanvasFromMinimap(position.x, position.y)}
               nodeColor={(node) => node.type === "vein" ? ITEMS[(node.data as FactoryNodeData).entity.resourceId!].color : node.type === "power" ? "#e1b452" : node.type === "station" ? "#d8794d" : node.type === "storage" ? "#8aa69d" : node.type === "splitter" ? "#d2aa5b" : "#61a9a4"}
-              maskColor={resolvedTheme === "light" ? "rgba(218, 229, 223, 0.76)" : "rgba(8, 11, 10, 0.76)"}
+              maskColor="rgba(8, 11, 10, 0.76)"
             /> : null}
             <Controls position="bottom-left" showInteractive={false} />
           </ReactFlow>
@@ -22863,12 +22766,12 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
           <button className={`canvas-minimap-toggle nodrag nopan${minimapCollapsed ? " canvas-minimap-toggle--collapsed" : ""}`} type="button" onClick={() => setMinimapCollapsed((collapsed) => !collapsed)} title={minimapCollapsed ? "展开小地图" : "折叠小地图"} aria-label={minimapCollapsed ? "展开小地图" : "折叠小地图"} aria-expanded={!minimapCollapsed}>
             {minimapCollapsed ? <MapIcon size={16} /> : <PanelRightClose size={16} />}
           </button>
-          <div className="canvas-density-status nodrag nopan" role="group" aria-live="polite" aria-label="画布自适应细节状态">
+          {canvasDetailPreference === "auto" ? <div className="canvas-density-status nodrag nopan" role="group" aria-live="polite" aria-label="画布自适应细节状态">
             <span>{canvasDetailPreference === "auto" ? "自动" : canvasDetailPreference === "full" ? "完整" : canvasDetailPreference === "medium" ? "中等" : "一行"} · {canvasPresentationDetailStage === "full" ? "完整卡片" : canvasPresentationDetailStage === "medium" ? "中等细节" : "一行卡片"}{canvasFullAllSafetyStage ? "（密集保护）" : ""}</span>
             <strong>{canvasVisibleNodeCount.toLocaleString("zh-CN")} 可见</strong>
             <i aria-hidden="true"><b style={{ transform: `scaleX(${canvasDetailProgressSnapshot.ratio})` }} /></i>
             {canvasStackGrouping.groupCount > 0 ? <small>{canvasStackGrouping.groupCount} 组重叠 · {canvasStackGrouping.markerCount} 个标记 · {canvasStackGrouping.hiddenCount} 个隐藏成员</small> : null}
-          </div>
+          </div> : null}
           {!nativePlayerAuthorityOwnsRuntime && game.mode === "normal" && isSpaceStationFeatureEnabled() ? <div className="canvas-global-navigation nodrag nopan">
             <button
               className={`orbital-station-entry${orbitalStationOpen ? " active" : ""}${game.orbitalStation.contractBoard.accepted.some((contract) => contract.status === "claimable") ? " claimable" : ""}`}
@@ -24322,7 +24225,6 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
             subscribeProjection={nativeOperationsSubscribeProjection}
             fetchProjectionDiagnostics={nativeOperationsFetchProjectionDiagnostics}
             commitSetting={nativeOperationsCommitSetting}
-            theme={themeMode}
             fontScale={nativeFontScale}
             factoryAlertsEnabled={factoryAlertsEnabled}
             canvasDetailPreference={canvasDetailPreference}
@@ -24330,7 +24232,6 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
             connectionHitArea={connectionHitArea}
             defaultBeltLanes={defaultBeltLanes}
             locale={appLocale}
-            onThemeChange={updateNativeThemePreference}
             onFontScaleChange={updateNativeFontScalePreference}
             onFactoryAlertsEnabledChange={updateFactoryAlertsEnabled}
             onCanvasDetailPreferenceChange={setCanvasDetailPreference}

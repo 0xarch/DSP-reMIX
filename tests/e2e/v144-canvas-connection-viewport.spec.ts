@@ -273,7 +273,7 @@ test("device-only expand-all preference is strict, persistent, accessible, and a
   if (await pause.isVisible()) await pause.click();
   expect(await page.evaluate((key) => window.localStorage.getItem(key), FULL_REALTIME_SIMULATION_KEY)).toBe("true");
 
-  await selectSettingsCategory(operations, "画面与主题", "visual");
+  await selectSettingsCategory(operations, "画面与显示", "visual");
   await operations.getByRole("button", { name: "English", exact: true }).click();
   await operations.locator(".settings-category-tabs").getByRole("button", { name: "Endgame Performance", exact: true }).click();
   const englishToggle = operations.locator("label.setting-row").filter({ hasText: "Expand every building while connecting" });

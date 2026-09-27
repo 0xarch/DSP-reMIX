@@ -9,6 +9,7 @@ import {
   getPlanet,
   getTechnology,
 } from "./content";
+import { isStarSystemIncluded } from "./galaxy";
 import type {
   CampaignChapterId,
   CampaignState,
@@ -296,6 +297,8 @@ function metricValue(state: GameState, metric: CampaignMetric): number {
     case "research":
       return state.research.completedTechIds.includes(metric.techId) ? 1 : 0;
     case "exploration":
+      // 星系个数生成选项：不在本存档星系清单中的恒星系，其勘探任务自动视为完成。
+      if (!isStarSystemIncluded(state.galaxy, metric.systemId)) return 1;
       return state.exploration.unlockedSystemIds.includes(metric.systemId) ? 1 : 0;
     case "station-trips":
       return state.entities

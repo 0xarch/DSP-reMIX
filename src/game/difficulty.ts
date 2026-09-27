@@ -54,3 +54,45 @@ export function isDifficultyMode(value: unknown): value is DifficultyMode {
 export function getDifficultyDefinition(value: DifficultyMode | null | undefined): DifficultyDefinition {
   return BY_ID.get(value ?? "standard") ?? BY_ID.get("standard")!;
 }
+
+/**
+ * 存档级精准难度倍率（矿物倍率 / 发电倍率）。
+ * 运行时取值为 number，可为 +Infinity（无限矿石 / 无限发电功率）。
+ * 存档序列化是纯 JSON.stringify，Infinity 会丢成 null，因此落盘时用
+ * 字符串哨兵 "Infinity" 表示；读取时经 resolveResourceMultiplier 还原。
+ */
+export type ResourceMultiplierSetting = number | "Infinity";
+
+export const RESOURCE_MULTIPLIER_MIN = 0.01;
+export const RESOURCE_MULTIPLIER_MAX = 100;
+export const RESOURCE_MULTIPLIER_INFINITY_SENTINEL = "Infinity" as const;
+
+/** Infinity 语义在数值路径上的有限替身：远超任何需求，且可安全 JSON 序列化。 */
+export const RESOURCE_MULTIPLIER_EFFECTIVE_INFINITY = 1e15;
+
+export function resolveResourceMultiplier(value: unknown): number {
+  if (value === RESOURCE_MULTIPLIER_INFINITY_SENTINEL) return Number.POSITIVE_INFINITY;
+  if (typeof value === "number" && Number.isFinite(value) && value >= RESOURCE_MULTIPLIER_MIN && value <= RESOURCE_MULTIPLIER_MAX) return value;
+  return 1;
+}
+
+/** 校验并把倍率归一化为可落盘形态；非法输入返回 null（由调用方回退默认值）。 */
+export function normalizeResourceMultiplierSetting(value: unknown): ResourceMultiplierSetting | null {
+  if (value === RESOURCE_MULTIPLIER_INFINITY_SENTINEL) return RESOURCE_MULTIPLIER_INFINITY_SENTINEL;
+  if (typeof value === "number" && Number.isFinite(value) && value >= RESOURCE_MULTIPLIER_MIN && value <= RESOURCE_MULTIPLIER_MAX) {
+    return Math.round(value * 100) / 100;
+  }
+  return null;
+}
+
+export function formatResourceMultiplier(value: unknown): string {
+  const resolved = resolveResourceMultiplier(value);
+  if (!Number.isFinite(resolved)) return "∞";
+  return `${Math.round(resolved * 100) / 100}×`;
+}
+
+/** 同 resolveResourceMultiplier，但 Infinity 以有限大数表示（用于进入持久化状态的功率计算）。 */
+export function resolveFiniteResourceMultiplier(value: unknown): number {
+  const resolved = resolveResourceMultiplier(value);
+  return Number.isFinite(resolved) ? resolved : RESOURCE_MULTIPLIER_EFFECTIVE_INFINITY;
+}

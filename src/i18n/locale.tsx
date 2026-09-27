@@ -27,7 +27,8 @@ function initialLocale(): AppLocale {
 export function applyDocumentLocale(locale: AppLocale): void {
   document.documentElement.lang = locale;
   document.documentElement.dataset.locale = locale;
-  document.title = locale === "en" ? "DSP Idle Network" : "DSP极简网络";
+  // 名称以 package.json displayName / displayNameEn（构建期注入常量）为唯一来源。
+  document.title = locale === "en" ? __APP_DISPLAY_NAME_EN__ : __APP_DISPLAY_NAME__;
 }
 
 export function initializeDocumentLocale(): void {

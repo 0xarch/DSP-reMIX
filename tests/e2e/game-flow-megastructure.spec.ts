@@ -2,6 +2,10 @@ import { expect, test, type Browser, type Locator, type Page } from "@playwright
 import { createInitialState } from "../../src/game/engine";
 import { serializeEnvelope } from "../../src/game/storage";
 import { selectSettingsCategory } from "./settings-helpers";
+import { readFileSync } from "node:fs";
+/** 应用显示名来自 package.json（名称统一配置的权威来源），断言随之动态读取。 */
+const APP_DISPLAY_NAME = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).displayName as string;
+
 
 async function installTestBootstrap(page: Page) {
   await page.addInitScript(() => {
@@ -47,7 +51,7 @@ test.beforeEach(async ({ page }, testInfo) => {
 async function freshGame(page: Page) {
   await page.goto("/");
   await expect(page.getByTitle("重置当前工厂")).toHaveCount(0);
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".vein-node").filter({ hasText: "铁矿石" })).toBeVisible({ timeout: 15_000 });
 }
 
@@ -145,7 +149,7 @@ async function openSeededGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openDisabledHammerGame(page: Page) {
@@ -167,7 +171,7 @@ async function openDisabledHammerGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openYellowStageGame(page: Page) {
@@ -240,7 +244,7 @@ async function openYellowStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openInterstellarGame(page: Page) {
@@ -274,7 +278,7 @@ async function openInterstellarGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openPurpleStageGame(page: Page) {
@@ -317,7 +321,7 @@ async function openPurpleStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openGreenStageGame(page: Page) {
@@ -360,7 +364,7 @@ async function openGreenStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openWhiteStageGame(page: Page) {
@@ -420,7 +424,7 @@ async function openWhiteStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openDysonSphereStageGame(page: Page) {
@@ -486,7 +490,7 @@ async function openDysonSphereStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openEndgameStageGame(page: Page) {
@@ -525,7 +529,7 @@ async function openEndgameStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openHandcraftGame(page: Page) {
@@ -566,7 +570,7 @@ async function openHandcraftGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openUpgradeStageGame(page: Page) {
@@ -606,7 +610,7 @@ async function openUpgradeStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openResearchLineRegressionGame(page: Page) {
@@ -651,7 +655,7 @@ async function openResearchLineRegressionGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openHandCarryGame(page: Page) {
@@ -672,7 +676,7 @@ async function openHandCarryGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openProliferatorStageGame(page: Page) {
@@ -710,7 +714,7 @@ async function openProliferatorStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openChemicalRoutingGame(page: Page) {
@@ -746,7 +750,7 @@ async function openChemicalRoutingGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openDysonPlannerGame(page: Page) {
@@ -776,7 +780,7 @@ async function openDysonPlannerGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openTechnologyUpgradeGame(page: Page) {
@@ -828,7 +832,7 @@ async function openTechnologyUpgradeGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openCompleteLogisticsGame(page: Page) {
@@ -873,7 +877,7 @@ async function openCompleteLogisticsGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openCompleteEnergyGame(page: Page) {
@@ -954,7 +958,7 @@ async function openCompleteEnergyGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openRareResourceStageGame(page: Page) {
@@ -1000,7 +1004,7 @@ async function openRareResourceStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openStellarExplorationGame(page: Page, advancedOnboarding = false) {
@@ -1054,7 +1058,7 @@ async function openStellarExplorationGame(page: Page, advancedOnboarding = false
     }
   }, advancedOnboarding);
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openBlueprintStageGame(page: Page) {
@@ -1101,7 +1105,7 @@ async function openBlueprintStageGame(page: Page) {
     if (!result.success) throw new Error(result.message);
   }, state);
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
   await expect(page.locator(".machine-node")).toHaveCount(2);
 }
 
@@ -1155,7 +1159,7 @@ async function openStressStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openOperationsStageGame(page: Page, route = "/") {
@@ -1199,7 +1203,7 @@ async function openOperationsStageGame(page: Page, route = "/") {
   if (new URL(route, "http://localhost").searchParams.get("menu") === "1") {
     await expect(page.locator(".start-menu")).toBeVisible();
   } else {
-    await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+    await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
   }
 }
 
@@ -1253,7 +1257,7 @@ async function openConstructionAutomationGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openCampaignEndgameStageGame(page: Page) {
@@ -1284,7 +1288,7 @@ async function openCampaignEndgameStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openTitaniumRoutingGame(page: Page) {
@@ -1313,7 +1317,7 @@ async function openTitaniumRoutingGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openMultiSlotStationRoutingGame(page: Page) {
@@ -1358,7 +1362,7 @@ async function openMultiSlotStationRoutingGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openEdgeOverlapGame(page: Page) {
@@ -1384,7 +1388,7 @@ async function openEdgeOverlapGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now(), state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openBeltNetworkGame(page: Page) {
@@ -1444,7 +1448,7 @@ async function openBeltNetworkGame(page: Page) {
     if (!result.success) throw new Error(result.message);
   }, state);
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 async function openOfflineStageGame(page: Page) {
@@ -1477,7 +1481,7 @@ async function openOfflineStageGame(page: Page) {
     window.localStorage.setItem("dsp-idle-network.save.v1", JSON.stringify({ savedAt: Date.now() - 6_000, state }));
   });
   await page.goto("/");
-  await expect(page.getByText("DSP极简网络", { exact: true })).toBeVisible();
+  await expect(page.getByText(APP_DISPLAY_NAME, { exact: true })).toBeVisible();
 }
 
 
@@ -2624,7 +2628,7 @@ test("stellar workspaces stay usable at 150 percent font scale on desktop and mo
   await page.getByLabel("打开设置").click();
   const operations = page.getByRole("dialog", { name: "运营中心" });
   await operations.locator(".operations-tabs").getByRole("tab", { name: "设置" }).click();
-  await operations.locator(".settings-category-overview").getByRole("button", { name: "画面与主题" }).click();
+  await operations.locator(".settings-category-overview").getByRole("button", { name: "画面与显示" }).click();
   await operations.getByLabel("字体大小").getByRole("button", { name: "150%" }).click();
   await operations.getByLabel("关闭运营中心").click();
 
@@ -2684,7 +2688,7 @@ test("interstellar station exposes relay hub and compact per-slot controls on mo
   await page.getByLabel("打开设置").click();
   const operations = page.getByRole("dialog", { name: "运营中心" });
   await operations.locator(".operations-tabs").getByRole("tab", { name: "设置" }).click();
-  await selectSettingsCategory(operations, "画面与主题", "visual");
+  await selectSettingsCategory(operations, "画面与显示", "visual");
   await operations.getByLabel("字体大小").getByRole("button", { name: "150%" }).click();
   await operations.getByLabel("关闭运营中心").click();
   await page.setViewportSize({ width: 390, height: 844 });

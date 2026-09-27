@@ -10,7 +10,7 @@
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--yellow) 70%, transparent);
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-raised) 94%, black);
   box-shadow: 0 10px 30px #0009;
   color: var(--yellow);
@@ -25,7 +25,7 @@
 .local-save-writer-banner__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .local-save-writer-banner__actions .danger { border-color: color-mix(in srgb, var(--coral) 70%, transparent); color: var(--coral); }
 .local-save-writer-banner__actions .recommended { border-color: color-mix(in srgb, var(--green) 72%, transparent); color: var(--green); }
-.local-save-writer-banner .local-save-writer-banner__recommendation { color: var(--green); font-weight: 700; }
+.local-save-writer-banner .local-save-writer-banner__recommendation { color: var(--green); font-weight: var(--weight-bold) }
 .local-save-writer-banner .local-save-writer-banner__result--busy { color: var(--yellow); }
 .local-save-writer-banner .local-save-writer-banner__result--success { color: var(--green); }
 .local-save-writer-banner .local-save-writer-banner__result--error { color: var(--coral); }

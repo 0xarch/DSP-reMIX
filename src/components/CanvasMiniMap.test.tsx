@@ -31,7 +31,6 @@ describe("CanvasMiniMap native projection boundary", () => {
       viewport={{ x: 0, y: 0, zoom: 1 }}
       canvasWidth={800}
       canvasHeight={600}
-      lightTheme={false}
       onCenter={onCenter}
       onZoom={onZoom}
       onUnavailable={vi.fn()}

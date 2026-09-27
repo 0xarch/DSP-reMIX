@@ -1,3 +1,4 @@
+assets/*
 node_modules/
 native/target/
 dist/
@@ -21,3 +22,6 @@ server/data/
 *.log
 *.tsbuildinfo
 .DS_Store
+.zcodeignore
+pnpm-lock.yaml
+pnpm-workspace.yaml

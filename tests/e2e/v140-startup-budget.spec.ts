@@ -58,7 +58,7 @@ test("Chinese main-menu startup stays inside long-task and heap budgets", async 
     await releaseNotes.getByRole("button", { name: /关闭|知道了|开始/ }).first().click();
   }
   await expect(page.locator(".start-menu")).toBeVisible();
-  await expect(page.locator(".start-menu-footer")).toContainText("模拟核心按需载入");
+  await expect(page.locator(".start-menu-nav")).toBeVisible();
   await page.waitForTimeout(750);
 
   const result = await page.evaluate(() => {
