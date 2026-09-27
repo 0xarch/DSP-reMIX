@@ -1,5 +1,7 @@
 # 测试与发布基线
 
+> **普通 CI 改为手动（2026-09-27，用户授权取消自动检查）**：截图对应 [CI / e5e33cb4](https://github.com/snowsnow0926/DSPONLINE/actions/runs/36261823713)，由上一次提交触发；Ops 与 E2E 分片 1 失败，单元、构建及 E2E 分片 2 通过。现将 `.github/workflows/ci.yml` 的 `push` / `pull_request` 改为仅 `workflow_dispatch`；它和浏览器兼容性检查均由 Actions 页面手动运行，不再因普通提交、PR 或每日计划自动发送失败结果。保留原有全部 job、断言和本地测试命令，不把历史失败标记成通过；手动运行仍会执行完整检查并报告真实失败。显式版本标签触发的发布流程保留，GitHub 账号通知偏好及分支保护未修改。配置校验确认仅触发方式改变，没有运行不相关的全量游戏测试。
+
 > **浏览器兼容性 CI 维护（2026-09-27）**：`Nightly Browser Compatibility` 改为仅手动 `workflow_dispatch`，取消每日计划，避免重复失败通知；普通提交/PR 的 CI 触发规则保留。[Linux 失败日志](https://github.com/snowsnow0926/DSPONLINE/actions/runs/36192772241) 确认 WebKit 在启动时拒绝共享的 `--mute-audio` 参数，Firefox 通过；该参数已移至 Chromium 项目专用配置，仍保留可选 renderer heap 参数。本机 Windows 上 Firefox/WebKit 2/2、Chromium 同一交互旅程 1/1 通过，并检查实际启动日志中 Firefox/WebKit 不再携带 Chromium 参数。Windows 修复前也能通过，不将其声称为 Linux 失败复现；本次未宣称 Linux 重新运行成功，也未把其他既有 CI 失败标记为已修复。
 
 > **1.3.0 香港 Web 正式验收（2026-09-22）**：运行源码 `e8c44f8d7160` 完成 clean 安装、类型、许可证、构建与 196 文件冻结/远端复算；Vitest 3,208/35 跳过，server 390/2 + station 4/4，Ops 56/6，Native Node 635/1，完整 Chromium 474/33（13.1 分钟），均无失败。正式 1.2.9 冻结文件到 1.3.0 的合成存档/PWA 升级、离线重开和公网新旧入口缓存隔离通过，生产测试写请求本地拦截。首次元数据/验证驱动问题及修正、跳过与范围边界见 [发布记录](./releases/1.3.0.md)；未构建或发布原生安装器。

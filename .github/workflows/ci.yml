@@ -1,9 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Run explicitly from Actions; automatic runs caused repeated failure emails.
+  workflow_dispatch:
 
 permissions:
   contents: read
