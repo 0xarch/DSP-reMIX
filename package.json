@@ -118,7 +118,7 @@
   },
   "build": {
     "appId": "com.dspidle.network",
-    "productName": "DSP极简网络",
+    "productName": "DSP reMIX",
     "asar": true,
     "directories": {
       "output": "release"

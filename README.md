@@ -1,4 +1,4 @@
-# DSP ReMIX
+# DSP reMIX
 
 本项目是基于 [DSP极简网络](https://github.com/snowsnow0926/DSPONLINE) 的二次开发软件。
 
