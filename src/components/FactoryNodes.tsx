@@ -252,6 +252,9 @@ function InteractionLockBadge({ entity, onChange, readOnly = false }: {
   ><Lock size={14} /></button>;
 }
 
+/** 设备状态合并条：设备状态文字 + 绿色周期进度底 + 生产速度（效率已由模拟
+ *  乘算进 productionRate/utilization，效率 >100% 时速度数字发光）。
+ *  原“生产周期”行的精确百分比进度按设计移除，只保留插值绿色底。 */
 function WorkCycle({
   label,
   progress,
@@ -262,6 +265,8 @@ function WorkCycle({
   semanticKey = label,
   effectiveSimulationMultiplier = 1,
   animate = true,
+  ratePerMinute,
+  statusText,
 }: {
   label: string;
   progress: number;
@@ -272,6 +277,10 @@ function WorkCycle({
   semanticKey?: string;
   effectiveSimulationMultiplier?: number;
   animate?: boolean;
+  /** 实时生产速率（/min），已含效率与倍率；由调用点从模拟状态传入。 */
+  ratePerMinute?: number;
+  /** 设备状态文字（运行中/输出堵塞…），提供时与周期标签合并显示。 */
+  statusText?: string;
 }) {
   const normalized = Math.max(0, Math.min(1, progress));
   const visualActive = active && animate;
@@ -283,7 +292,6 @@ function WorkCycle({
     effectiveSimulationMultiplier,
     active: visualActive,
   });
-  const percent = Math.round(displayProgress * 100);
   if (mode === "indeterminate") {
     return <div className={`work-cycle work-cycle--indeterminate${visualActive ? " work-cycle--active" : ""}`} aria-label={`${label} ${active ? "运行中" : "待机"}`}>
       <i aria-hidden="true" />
@@ -291,6 +299,10 @@ function WorkCycle({
       <strong>{active ? "运行中" : "待机"}</strong>
     </div>;
   }
+  const boosted = efficiency > 1.001;
+  const rate = ratePerMinute !== undefined
+    ? (ratePerMinute > 0 ? `${ratePerMinute.toFixed(1)}/min` : "0.0/min")
+    : `${Math.round(efficiency * 100)}%`;
   return (
     <div
       className={`work-cycle work-cycle--${mode}${visualActive ? " work-cycle--active" : ""}${visualActive && cyclesPerSecond > 0 ? " work-cycle--interpolated" : ""}`}
@@ -298,11 +310,11 @@ function WorkCycle({
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuenow={percent}
+      aria-valuenow={Math.round(displayProgress * 100)}
     >
       <i style={{ transform: `scaleX(${displayProgress})` }} />
-      <span>{label}</span>
-      <strong>{active ? `${percent}% · 效率 ${Math.round(efficiency * 100)}%` : percent > 0 ? `${percent}% · 暂停` : "待机"}</strong>
+      <span>{statusText ? `${statusText} · ${label}` : label}</span>
+      <strong className={boosted ? "work-cycle-rate--boosted" : undefined} title={boosted ? `过载效率 ${Math.round(efficiency * 100)}%` : undefined}>{active ? rate : "待机"}</strong>
     </div>
   );
 }
@@ -482,6 +494,10 @@ function uniqueItemIds(...groups: readonly (readonly ItemId[])[]): ItemId[] {
 
 function LightweightNodeHandles({ data }: { data: FactoryNodeData }) {
   const { entity } = data;
+  // 矿脉只有输出把手（与完整卡片 VeinFullNode 一致，后者仅渲染 OutputSlot 的
+  // source 把手，从不渲染输入/自动输入把手）。此前中卡/紧凑卡对矿脉也渲染
+  // 通用自动输入把手，造成“矿脉能被接入输入”的错误观感。
+  const veinOutputOnly = entity.kind === "vein";
   const ordinaryConnections = ordinaryBeltHandlesEnabled(data);
   const specialInputs = entity.buildingId === "material_delivery_hub"
     ? (entity.deliverySlots ?? []).flatMap((slot, index) => slot.mode === "disabled" ? [] : [{ id: `in:delivery:${index}`, itemId: slot.itemId }])
@@ -498,8 +514,8 @@ function LightweightNodeHandles({ data }: { data: FactoryNodeData }) {
   const outputItems = entity.kind === "machine"
     ? uniqueItemIds(data.producedOutputItemIds)
     : uniqueItemIds(data.producedOutputItemIds, Object.keys(data.outputBeltCounts) as ItemId[]);
-  const showAutoInput = specialInputs.length === 0 && inputItems.length === 0;
-  const inputCount = specialInputs.length || inputItems.length || (showAutoInput ? 1 : 0);
+  const showAutoInput = !veinOutputOnly && specialInputs.length === 0 && inputItems.length === 0;
+  const inputCount = veinOutputOnly ? 0 : specialInputs.length || inputItems.length || (showAutoInput ? 1 : 0);
   const position = (index: number, count: number) => `${((index + 1) / (count + 1)) * 100}%`;
   return <>
     {specialInputs.length > 0 ? specialInputs.map((port, index) => <Handle
@@ -510,7 +526,7 @@ function LightweightNodeHandles({ data }: { data: FactoryNodeData }) {
       style={{ top: position(index, specialInputs.length) }}
       className={`factory-handle factory-handle--input factory-node-lod__handle nodrag nopan${port.itemId ? connectionHandleClass(entity.id, port.itemId, "target", data.connectionDraft) : " factory-handle--universal"}`}
       key={port.id}
-    />) : inputItems.map((itemId, index) => <Handle
+    />) : !veinOutputOnly ? inputItems.map((itemId, index) => <Handle
       id={`in:${itemId}`}
       type="target"
       position={Position.Left}
@@ -518,7 +534,7 @@ function LightweightNodeHandles({ data }: { data: FactoryNodeData }) {
       style={{ top: position(index, inputCount) }}
       className={`factory-handle factory-handle--input factory-node-lod__handle nodrag nopan${connectionHandleClass(entity.id, itemId, "target", data.connectionDraft)}`}
       key={`in:${itemId}`}
-    />)}
+    />) : null}
     {showAutoInput ? <Handle id="in:auto" type="target" position={Position.Left} isConnectable={!data.readOnly} className="factory-handle factory-handle--input factory-handle--auto factory-node-lod__handle nodrag nopan" /> : null}
     {outputItems.map((itemId, index) => <Handle
       id={`out:${itemId}`}
@@ -628,17 +644,77 @@ function FactoryNodeLodView({ data, selected }: NodeProps<FactoryFlowNode>) {
       <div><span>{productionTitle && name === productionTitle ? `${productionTitle} · ${building?.name ?? category}` : category}</span><strong title={name}>{name}</strong></div>
       <small>×{count}</small>
     </header>
-    {lod === "medium" ? <div className="factory-node-lod__summary">
-      <span className={`status-dot status-dot--${data.status.tone === "running" ? "good" : data.status.tone === "warning" ? "partial" : data.status.tone === "blocked" ? "blocked" : "idle"}`} />
-      <strong>{data.status.label}</strong>
-      <small>{Math.round(data.powerFactor * 100)}% 电力</small>
-      <div className="factory-node-lod__io" aria-label="简化输入输出">
-        <span>入 {inputItems.slice(0, 3).map((itemId) => ITEMS[itemId]?.symbol ?? "?").join(" ") || "--"}</span>
-        <span>出 {outputItems.slice(0, 3).map((itemId) => ITEMS[itemId]?.symbol ?? "?").join(" ") || "--"}</span>
-      </div>
-    </div> : null}
+    {lod === "medium" ? <MediumNodeIoSummary
+      entity={entity}
+      statusTone={data.status.tone}
+      statusLabel={data.status.label}
+      statusText={data.status.label}
+      powerFactor={data.powerFactor}
+      acceptedInputItemIds={data.acceptedInputItemIds}
+      producedOutputItemIds={data.producedOutputItemIds}
+      connectedInputItemIds={data.connectedInputItemIds}
+      inputBeltCounts={data.inputBeltCounts}
+      outputBeltCounts={data.outputBeltCounts}
+      researchLabel={data.researchLabel}
+    /> : null}
   </article>;
 }
+
+/** 中等卡片 IO 摘要（与完整卡片语义对齐）：
+ *  1. machine 并入实际有线路连接的物品（拉线中/改配方前不误报）；
+ *  2. 矩阵科研站显示“入 矩阵 · 出 科技名”（配方本身无输出）；
+ *  3. 非 machine 保持原来的传送带计数兜底。
+ *  记忆化符号渲染：同一物品组合在大量卡片间重复，避免每帧重拼字符串。 */
+const MEDIUM_IO_SYMBOLS_BY_KEY = new Map<string, string>();
+function mediumIoSymbols(itemIdKey: string, render: () => string): string {
+  let symbols = MEDIUM_IO_SYMBOLS_BY_KEY.get(itemIdKey);
+  if (symbols === undefined) {
+    const rendered = render();
+    symbols = rendered;
+    if (MEDIUM_IO_SYMBOLS_BY_KEY.size > 4096) MEDIUM_IO_SYMBOLS_BY_KEY.clear();
+    MEDIUM_IO_SYMBOLS_BY_KEY.set(itemIdKey, rendered);
+  }
+  return symbols;
+}
+
+const MediumNodeIoSummary = memo(function MediumNodeIoSummary({ entity, statusTone, statusLabel, statusText, powerFactor, acceptedInputItemIds, producedOutputItemIds, connectedInputItemIds, inputBeltCounts, outputBeltCounts, researchLabel }: {
+  entity: FactoryEntity;
+  statusTone: string;
+  statusLabel: string;
+  statusText?: string;
+  powerFactor: number;
+  acceptedInputItemIds: readonly ItemId[];
+  producedOutputItemIds: readonly ItemId[];
+  connectedInputItemIds: readonly ItemId[];
+  inputBeltCounts: Partial<Record<ItemId, number>>;
+  outputBeltCounts: Partial<Record<ItemId, number>>;
+  researchLabel: string | null;
+}) {
+  const isMachine = entity.kind === "machine";
+  const isMatrixResearch = entity.recipeId === "matrix_research";
+  const inputItems = isMachine
+    ? uniqueItemIds(acceptedInputItemIds, connectedInputItemIds)
+    : uniqueItemIds(acceptedInputItemIds, Object.keys(inputBeltCounts) as ItemId[]);
+  const outputItems = isMachine
+    ? uniqueItemIds(producedOutputItemIds)
+    : uniqueItemIds(producedOutputItemIds, Object.keys(outputBeltCounts) as ItemId[]);
+  const inputSymbols = mediumIoSymbols("in:" + inputItems.join(","),
+    () => inputItems.slice(0, 3).map((itemId) => ITEMS[itemId]?.symbol ?? "?").join(" ") || "--");
+  const outputSymbols = isMatrixResearch
+    ? researchLabel ?? "科研模式"
+    : mediumIoSymbols("out:" + outputItems.join(","),
+      () => outputItems.slice(0, 3).map((itemId) => ITEMS[itemId]?.symbol ?? "?").join(" ") || "--");
+  const dot = statusTone === "running" ? "good" : statusTone === "warning" ? "partial" : statusTone === "blocked" ? "blocked" : "idle";
+  return <div className="factory-node-lod__summary">
+    <span className={"status-dot status-dot--" + dot} />
+    <strong>{statusText ? `${statusText} · ${statusLabel}` : statusLabel}</strong>
+    <small>{Math.round(powerFactor * 100)}% 电力</small>
+    <div className="factory-node-lod__io" aria-label="简化输入输出">
+      <span>入 {inputSymbols}</span>
+      <span>出 {outputSymbols}</span>
+    </div>
+  </div>;
+});
 
 function FactoryNodeCompactView({ data, selected }: NodeProps<FactoryFlowNode>) {
   const { entity } = data;
@@ -723,11 +799,10 @@ function VeinFullNode({ data, selected }: NodeProps<FactoryFlowNode>) {
       </header>
       <div className="vein-readout">
         <span>{extractor.shortName} <strong>×{entity.minerCount}</strong></span>
-        <span title={data.status.label}>{entity.minerCount > 0 ? `${data.status.label} · ${entity.productionRate.toFixed(1)}/min` : data.status.label}</span>
         <span className={reserve?.exhausted ? "vein-reserve vein-reserve--depleted" : "vein-reserve"}>{reserve?.infinite ? "无限储量" : `储量 ${formatQuantityCompact(reserve?.remaining ?? 0)} / ${formatQuantityCompact(reserve?.capacity ?? 0)} · ${reserve?.remainingPercent ?? 0}%`}</span>
       </div>
       {entity.minerCount > 0 ? (
-        <WorkCycle label="采矿周期" progress={entity.progress} active={!data.paused && entity.utilization > 0.001} efficiency={data.powerFactor} cyclesPerSecond={data.cycleRatePerSecond} semanticKey={`${entity.id}:${entity.resourceId}`} effectiveSimulationMultiplier={data.simulationMultiplier} animate={data.dynamicEffects} />
+        <WorkCycle label="采矿周期" statusText={data.status.label} progress={entity.progress} active={!data.paused && entity.utilization > 0.001} efficiency={data.powerFactor} cyclesPerSecond={data.cycleRatePerSecond} semanticKey={`${entity.id}:${entity.resourceId}`} effectiveSimulationMultiplier={data.simulationMultiplier} animate={data.dynamicEffects} ratePerMinute={entity.productionRate} />
       ) : null}
       {fluid ? (
         <div className="manual-mine manual-mine--locked"><Droplets size={16} /><span>{entity.minerCount > 0 ? `由${extractor.shortName}自动抽取` : `需要${extractor.name}`}</span></div>
@@ -785,7 +860,6 @@ function MachineFullNode({ data, selected }: NodeProps<FactoryFlowNode>) {
     : `${inputs.map((input) => input.itemId).join(",")}:auto>${outputIds.join(",")}`);
   const acceptsCargo = !data.readOnly && cargo && inputs.some((input) => input.itemId === cargo.itemId);
   const adding = !data.readOnly && placement === entity.buildingId;
-  const utilizationTone = data.status.tone === "running" ? "good" : data.status.tone === "warning" ? "partial" : data.status.tone === "blocked" ? "blocked" : "idle";
   const recipeOptions = getRecipesForBuilding(entity.buildingId!).filter((option) =>
     !option.requiredTechId || data.completedTechIds.includes(option.requiredTechId));
   const railEjector = entity.buildingId === "em_rail_ejector";
@@ -870,11 +944,6 @@ function MachineFullNode({ data, selected }: NodeProps<FactoryFlowNode>) {
           <RecipeCatalogPicker value={entity.recipeId} recipes={recipeOptions} onChange={(recipeId) => data.onRecipeChange(entity.id, recipeId)} compact />
         </div>
       ) : null}
-      <div className="machine-status">
-        <span className={`status-dot status-dot--${utilizationTone}`} />
-        <span title={data.status.label}>{data.status.label}</span>
-        <strong>{entity.productionRate.toFixed(1)}/min</strong>
-      </div>
       {blackHoleConnector ? (
         <section className="black-hole-core" aria-label="微型黑洞物资销毁接口">
           <div className="black-hole-core__warning"><Atom size={16} /><span>输入物资将被永久销毁且无法找回</span></div>
@@ -905,6 +974,7 @@ function MachineFullNode({ data, selected }: NodeProps<FactoryFlowNode>) {
       ) : (
         <WorkCycle
           label={constructionCenter ? "建筑制造周期" : galacticExporter ? "银河物资交付" : recipe?.id === "matrix_research" ? "科研周期" : railEjector ? "太阳帆发射" : launchSilo ? "火箭发射" : rayReceiver ? "光子周期" : entity.buildingId === "miniature_particle_collider" ? "对撞周期" : entity.buildingId === "oil_refinery" || entity.buildingId === "chemical_plant" ? "加工周期" : "生产周期"}
+          statusText={data.status.label}
           progress={entity.progress}
           active={!data.paused && entity.utilization > 0.001}
           efficiency={entity.utilization}
@@ -912,6 +982,7 @@ function MachineFullNode({ data, selected }: NodeProps<FactoryFlowNode>) {
           semanticKey={`${entity.id}:${recipe?.id ?? "idle"}`}
           effectiveSimulationMultiplier={data.simulationMultiplier}
           animate={data.dynamicEffects}
+          ratePerMinute={entity.productionRate}
         />
       )}
       {railEjector || launchSilo ? (

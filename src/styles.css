@@ -3859,6 +3859,25 @@ html[data-ui-font-scale="200"] .settings-group > header > small {
   color: var(--text-soft);
 }
 
+/* 效率 >100%（过载/增幅）时生产速度数字发光。 */
+.work-cycle-rate--boosted,
+.machine-status strong.work-cycle-rate--boosted {
+  color: var(--tone-mint);
+  text-shadow: 0 0 6px rgba(110, 215, 178, 0.85), 0 0 14px rgba(110, 215, 178, 0.45);
+}
+
+.work-cycle > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-cycle > strong {
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
 .status-dot {
   width: 7px;
   height: 7px;
@@ -3978,16 +3997,16 @@ html[data-ui-font-scale="200"] .settings-group > header > small {
 .work-cycle {
   position: relative;
   display: flex;
-  height: 25px;
+  min-height: 34px;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   overflow: hidden;
-  padding: 0 10px;
+  padding: 7px 10px;
   border-bottom: 1px solid var(--line);
   background: #111715;
-  color: #68746f;
-  font-size: 8px;
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .work-cycle > i {

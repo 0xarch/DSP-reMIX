@@ -101,8 +101,18 @@ describe("native factory node presentation App integration", () => {
       "const className = [",
       nodeMap.indexOf("dynamicNodeCount += 1;"),
     );
-    expect(assignment(connectionPresentation, "acceptedInputItemIds")).toMatch(/nativePresentation\.acceptedInputItemIds[\s\S]*?: getAcceptedInputs\(entity, canvasGame\)/);
-    expect(assignment(connectionPresentation, "producedOutputItemIds")).toMatch(/nativePresentation\.producedOutputItemIds[\s\S]*?: getProducedOutputs\(entity\)/);
+    // Web 数据源的输入/输出物品已下沉到 entityIoItemIdsByEntityId 记忆化缓存
+    // （避免 dynamic 分支对每个可见节点每帧各调一次 getAcceptedInputs/getProducedOutputs）。
+    expect(connectionPresentation).toMatch(/webIoItemIds\?\.accepted/);
+    expect(connectionPresentation).toMatch(/webIoItemIds\?\.produced/);
+    const entityIoMemo = sourceSection(
+      app,
+      "const entityIoItemIdsByEntityId = useMemo",
+      "const factoryMiniMapUsesNativeTopology",
+    );
+    expect(entityIoMemo).toMatch(/getAcceptedInputs\(entity, canvasGame\)/);
+    expect(entityIoMemo).toMatch(/getProducedOutputs\(entity\)/);
+    expect(entityIoMemo).toMatch(/nativePlayerAuthorityOwnsRuntime/);
     expect(connectionPresentation).toMatch(/nativePresentation[\s\S]*?nativePresentation\.supported && acceptedInputItemIds\.includes\(nodeConnectionDraft\.itemId\)[\s\S]*?: canEntityAcceptBeltItem\(canvasGame, entity, nodeConnectionDraft\.itemId\)/);
   });
 

@@ -16266,6 +16266,17 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
       return next;
     }, { entities: activePlanetEntities.length, belts: activePlanetBelts.length });
   }, [activePlanetBelts, activePlanetEntities, canvasRenderSnapshot.topologyRevision, factoryCanvasPlanetId, factoryCanvasRows.source, topologyCacheFeatureActive]);
+  // Web 数据源下的每实体输入/输出物品缓存：dynamic 分支原先对每个可见节点
+  // 每帧各调一次 getAcceptedInputs/getProducedOutputs（内部重复 getRecipe/
+  // getStationSlots），改为按实体 id 记忆化，仅在实体集合或游戏快照变化时重算。
+  const entityIoItemIdsByEntityId = useMemo(() => {
+    if (nativePlayerAuthorityOwnsRuntime) return null;
+    const map = new Map<string, { accepted: readonly ItemId[]; produced: readonly ItemId[] }>();
+    for (const entity of activePlanetEntities) {
+      map.set(entity.id, { accepted: getAcceptedInputs(entity, canvasGame), produced: getProducedOutputs(entity) });
+    }
+    return map;
+  }, [activePlanetEntities, canvasGame, nativePlayerAuthorityOwnsRuntime]);
   const factoryMiniMapUsesNativeTopology = nativeFactoryThinViewActive &&
     factoryViewportProvesWholePlanet(factoryViewportReadModel);
   const factoryMiniMapEntities = factoryMiniMapUsesNativeTopology
@@ -16991,12 +17002,13 @@ export function FactoryGame({ initialLoad, onReturnToMenu, onOpenReleaseNotes, o
           const nodeConnectionDraft = nativePresentation?.supported === false
             ? null
             : connectionPresentation.exposeConnectionDraft ? connectionDraft : null;
+          const webIoItemIds = entityIoItemIdsByEntityId?.get(entity.id);
           const acceptedInputItemIds = nativePresentation
             ? nativePresentation.supported ? nativePresentation.acceptedInputItemIds as readonly ItemId[] : []
-            : getAcceptedInputs(entity, canvasGame);
+            : webIoItemIds?.accepted ?? [];
           const producedOutputItemIds = nativePresentation
             ? nativePresentation.supported ? nativePresentation.producedOutputItemIds as readonly ItemId[] : []
-            : getProducedOutputs(entity);
+            : webIoItemIds?.produced ?? [];
           const connectionClassName = nodeConnectionDraft
             ? entity.id === nodeConnectionDraft.nodeId
               ? "factory-flow-node--connection-origin"

@@ -1630,7 +1630,7 @@ test("automatic mining uses the real extraction cycle progress", async ({ page }
   const progress = ironVein.getByRole("progressbar", { name: "采矿周期" });
   await expect(progress).toBeVisible();
   await expect.poll(async () => Number(await progress.getAttribute("aria-valuenow"))).toBeGreaterThan(0);
-  await expect(progress).toContainText("效率 100%");
+  await expect(progress).toContainText("/min");
   await page.screenshot({ path: "artifacts/qa/automatic-mining-progress-1280.png", fullPage: true });
 });
 

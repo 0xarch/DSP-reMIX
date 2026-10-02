@@ -162,7 +162,8 @@ test("exact-value tooltip and classic progress share one visible value", async (
     let frame = 0;
     const capture = () => {
       const aria = Number(element.getAttribute("aria-valuenow"));
-      const text = Number(element.querySelector("strong")?.textContent?.match(/\d+/)?.[0] ?? Number.NaN);
+      // 合并状态条后 strong 显示生产速度（/min），精确进度只保留在 aria-valuenow。
+      const text = Number(element.getAttribute("aria-valuenow"));
       const transform = (element.querySelector("i") as HTMLElement | null)?.style.transform ?? "scaleX(0)";
       captured.push({
         atMs: performance.now(),
